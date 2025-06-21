@@ -1,0 +1,470 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Shop TvT</title>
+  </head>
+  <body>
+    <header>
+        <div class="logo">
+            <a href="index.html">
+                <img src="assets/images/logo/meme01.jpg" alt="Logo">
+            </a>
+        </div>
+        <div class="search-section">
+            <div class="search-bar">
+                <input type="text" placeholder="Tìm kiếm sản phẩm...">
+                <button class="search-btn"><i class="fas fa-search"></i></button>
+            </div>
+            <div class="header-icons">
+                <div class="cart-icon">
+                    <i class="fas fa-shopping-cart"></i>
+                    <span class="cart-count">0</span>
+                </div>
+                <div class="notification-icon">
+                    <i class="fas fa-bell"></i>
+                </div>
+            </div>
+        </div>
+        <div class="user-section">
+            <div class="auth-buttons">
+                <button class="auth-btn login-btn" onclick="showForm('login')">Đăng nhập</button>
+                <button class="auth-btn register-btn" onclick="showForm('register')">Đăng ký</button>
+            </div>
+            <div class="user-icon" style="display: none;">
+                <div class="user-avatar">
+                    <img src="img/avatar.png" alt="Avatar">
+                    <span class="user-name">Tên người dùng</span>
+                </div>
+                <div class="user-menu">
+                    <div class="menu-item" onclick="showUserProfile()">
+                        <i class="fas fa-user"></i>
+                        <span>Thông tin tài khoản</span>
+                    </div>
+                    <div class="menu-item" onclick="showOrderHistory()">
+                        <i class="fas fa-history"></i>
+                        <span>Lịch sử mua hàng</span>
+                    </div>
+                    <div class="menu-item" onclick="logout()">
+                        <i class="fas fa-sign-out-alt"></i>
+                        <span>Đăng xuất</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <nav>
+        <div class="nav-buttons">
+            <button class="nav-btn active">Tất cả</button>
+            <button class="nav-btn">Bánh kem</button>
+            <button class="nav-btn">Đồ uống</button>
+            <button class="nav-btn">Đồ ăn</button>
+        </div>
+    </nav>
+
+    <main>
+        <div class="sidebar">
+            <div class="category-menu">
+                <!-- Category menu will be added dynamically -->
+            </div>
+        </div>
+        <section class="products">
+            <div class="loading-products">
+                <i class="fas fa-spinner fa-spin"></i>
+                <p>Đang tải sản phẩm...</p>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+  <div>
+    <h3>Thông tin liên hệ</h3>
+    <p>Địa chỉ: 123 Đường Bánh Ngon, Quận 1, TP.HCM</p>
+    <p>Điện thoại: 0123 456 789</p>
+    <p>Email: lienhe@banbanh.vn</p>
+    <p>Giờ mở cửa: 8:00 - 22:00</p>
+  </div>
+  <div>
+    <h3>Chính sách</h3>
+    <p><a href="#">Chính sách giao hàng</a></p>
+    <p><a href="#">Đổi trả</a></p>
+    <p><a href="#">Bảo mật thông tin</a></p>
+  </div>
+  <div class="social-links">
+    <h3>Mạng xã hội</h3>
+    <p><a href="#">Instagram</a> | <a href="#">Facebook</a> | <a href="#">TikTok</a></p>
+  </div>
+  <div class="map-container">
+    <h3>Bản đồ</h3>
+    <iframe 
+      src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3919.892140425585!2d106.6932067152607!3d10.77968799231817!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x31752f2df122f419%3A0x25f551c24068a212!2zMTIzIMSQxrDhu51uZyBC4bqvYyDEkOG6oXAsIFF14bqjbmcgMSwgUXXhuq1uIDEsIFF14bqjbmcgVGjhu6cgTuG7mWksIFZpZXRuYW0!5e0!3m2!1sen!2s!4v1686756418030!5m2!1sen!2s"
+      allowfullscreen=""
+      loading="lazy"
+      referrerpolicy="no-referrer-when-downgrade"
+      title="Bản đồ cửa hàng"
+    ></iframe>
+  </div>
+  <div>
+    <h3>FAQ</h3>
+    <p><strong>Thời gian giao hàng:</strong> Từ 1-3 ngày tùy khu vực.</p>
+    <p><strong>Cách bảo quản bánh:</strong> Bảo quản trong tủ lạnh, tránh ánh nắng trực tiếp.</p>
+  </div>
+    </footer>
+
+    <button class="back-to-top" onclick="scrollToTop()">
+        <i class="fas fa-angle-up"></i>
+    </button>
+
+    <div class="chatbot">
+        <button class="chat-btn" onclick="toggleChatbot()">
+            <i class="fas fa-comments"></i>
+            <span class="chat-tooltip">Chat với chúng tôi</span>
+        </button>
+        <div class="chatbot-content" style="display: none;">
+            <div class="chat-header">
+                <h4><i class="fas fa-robot"></i> Hỗ trợ trực tuyến</h4>
+                <button onclick="toggleChatbot()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="chat-messages">
+                <div class="message bot-message">
+                    <i class="fas fa-robot"></i>
+                    <p>Xin chào! Tôi có thể giúp gì cho bạn?</p>
+                </div>
+            </div>
+            <div class="chat-input">
+                <input type="text" placeholder="Nhập tin nhắn..." id="chatInput">
+                <button onclick="sendMessage()"><i class="fas fa-paper-plane"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <div class="form-overlay" id="loginForm" style="display: none;">
+        <div class="auth-form">
+            <h2>Đăng nhập</h2>
+            <button class="close-btn" onclick="hideForm('login')"><i class="fas fa-times"></i></button>
+            <form onsubmit="handleLogin(event)">
+                <input type="text" placeholder="Email/Tên đăng nhập" required>
+                <div class="password-field">
+                    <input type="password" placeholder="Mật khẩu" required>
+                    <i class="fas fa-eye-slash toggle-password"></i>
+                </div>
+                <div class="form-buttons">
+                    <button type="submit" class="submit-btn login-btn">ĐĂNG NHẬP</button>
+                </div>
+            </form>
+            <div class="social-login">
+                <p>Hoặc đăng nhập với</p>
+                <div class="social-buttons">
+                    <button class="social-btn google-btn">
+                        <i class="fab fa-google"></i> Google
+                    </button>
+                    <button class="social-btn facebook-btn">
+                        <i class="fab fa-facebook-f"></i> Facebook
+                    </button>
+                </div>
+            </div>
+            <div class="switch-form">
+                <p>Bạn chưa có tài khoản? <a href="#" onclick="switchForm('register')">Đăng ký</a></p>
+            </div>
+        </div>
+    </div>
+
+    <div class="form-overlay" id="registerForm" style="display: none;">
+        <div class="auth-form">
+            <h2>Đăng ký</h2>
+            <button class="close-btn" onclick="hideForm('register')"><i class="fas fa-times"></i></button>
+            <form onsubmit="handleRegister(event)">
+                <input type="text" placeholder="Họ và tên" required>
+                <input type="email" placeholder="Email" required>
+                <div class="password-field">
+                    <input type="password" placeholder="Mật khẩu" required>
+                    <i class="fas fa-eye-slash toggle-password"></i>
+                </div>
+                <div class="password-field">
+                    <input type="password" placeholder="Xác nhận mật khẩu" required>
+                    <i class="fas fa-eye-slash toggle-password"></i>
+                </div>
+                <div class="form-buttons">
+                    <button type="submit" class="submit-btn register-btn">ĐĂNG KÝ</button>
+                </div>
+            </form>
+            <div class="social-login">
+                <p>Hoặc đăng ký với</p>
+                <div class="social-buttons">
+                    <button class="social-btn google-btn">
+                        <i class="fab fa-google"></i> Google
+                    </button>
+                    <button class="social-btn facebook-btn">
+                        <i class="fab fa-facebook-f"></i> Facebook
+                    </button>
+                </div>
+            </div>
+            <div class="switch-form">
+                <p>Bạn đã có tài khoản? <a href="#" onclick="switchForm('login')">Đăng nhập</a></p>
+            </div>
+        </div>
+    </div>
+
+    <div class="dropdown-overlay"></div>
+    <div class="cart-dropdown">
+        <div class="cart-header">
+            <h3>Giỏ hàng</h3>
+            <button class="close-cart"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="delivery-options">
+            <label class="option" onclick="toggleDeliveryOption('dine-in')">
+                <input type="radio" name="delivery" value="dine-in" checked>
+                <span><i class="fas fa-utensils"></i> Dùng tại quán</span>
+            </label>
+            <label class="option" onclick="toggleDeliveryOption('takeaway')">
+                <input type="radio" name="delivery" value="takeaway">
+                <span><i class="fas fa-shopping-bag"></i> Mang về</span>
+            </label>
+        </div>
+        <div class="delivery-fields">
+
+        </div>
+        <div class="cart-items">
+
+        </div>
+
+        <div class="form-container" id="paymentForm" style="display: none;">
+            <div class="form-box">
+                <span class="close-btn" onclick="hideForm('payment')">&times;</span>
+                <h2>Xác nhận thanh toán</h2>
+                <div class="payment-method-section">
+                    <button class="payment-option" data-method="cash" onclick="selectPaymentMethod('cash')">
+                        <i class="fas fa-money-bill"></i> Tiền mặt
+                    </button>
+                    <button class="payment-option" data-method="qr" onclick="selectPaymentMethod('qr')">
+                        <i class="fas fa-qrcode"></i> Mã QR
+                    </button>
+                </div>
+                <div class="delivery-address" style="display: none; margin-top: 15px;">
+                    <h4>Địa chỉ giao hàng</h4>
+                    <input type="text" placeholder="Họ và tên người nhận">
+                    <input type="text" placeholder="Số điện thoại">
+                    <textarea placeholder="Địa chỉ giao hàng"></textarea>
+                </div>
+                <div id="qrCodeDisplay" style="display: none; text-align: center; margin-top: 20px;">
+                    <h3>Quét mã QR để thanh toán</h3>
+                    <img id="qrCodeImage" src="" alt="QR Code" style="width: 200px; height: 200px;">
+                    <p>Tổng tiền: <span id="qrPaymentAmount"></span> VNĐ</p>
+
+                </div>
+                <button class="confirm-payment-btn" onclick="confirmPayment()">Xác nhận</button>
+            </div>
+        </div>
+        <div class="cart-footer">
+            <div class="cart-note">
+                <textarea placeholder="Ghi chú đơn hàng..."></textarea>
+            </div>
+            <div class="cart-summary">
+                <div class="cart-total">
+                    <span>Tạm tính:</span>
+                    <span class="subtotal-price">0 VNĐ</span>
+                </div>
+                <div class="cart-total">
+                    <span>Tổng cộng:</span>
+                    <span class="total-price">0 VNĐ</span>
+                </div>
+            </div>
+            <button class="checkout-btn">Thanh toán</button>
+        </div>
+    </div>
+
+    <div class="payment-overlay" style="display: none;">
+        <div class="payment-form">
+            <div class="payment-header">
+                <h3>Thanh toán</h3>
+                <button class="close-payment"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="payment-content">
+                <div class="delivery-address">
+                    <h4>Địa chỉ giao hàng</h4>
+                    <input type="text" placeholder="Họ và tên người nhận">
+                    <input type="text" placeholder="Số điện thoại">
+                    <textarea placeholder="Địa chỉ giao hàng"></textarea>
+                </div>
+                <div class="payment-method">
+                    <h4>Phương thức thanh toán</h4>
+                    <label class="payment-option">
+                        <input type="radio" name="payment" value="cod" checked>
+                        <span><i class="fas fa-money-bill"></i> Thanh toán khi nhận hàng</span>
+                    </label>
+                    <label class="payment-option">
+                        <input type="radio" name="payment" value="card">
+                        <span><i class="fas fa-credit-card"></i> Thanh toán bằng thẻ</span>
+                    </label>
+                    <label class="payment-option">
+                        <input type="radio" name="payment" value="momo">
+                        <span><i class="fas fa-wallet"></i> Ví MoMo</span>
+                    </label>
+                </div>
+                <div class="voucher-section">
+                    <h4>Mã giảm giá</h4>
+                    <div class="voucher-input">
+                        <input type="text" placeholder="Nhập mã giảm giá">
+                        <button>Áp dụng</button>
+                    </div>
+                </div>
+                <div class="order-summary">
+                    <h4>Tổng đơn hàng</h4>
+                    <div class="summary-item">
+                        <span>Tạm tính:</span>
+                        <span class="subtotal">0 VNĐ</span>
+                    </div>
+                    <div class="summary-item">
+                        <span>Phí giao hàng:</span>
+                        <span class="shipping-fee">30.000 VNĐ</span>
+                    </div>
+                    <div class="summary-item discount" style="display: none;">
+                        <span>Giảm giá:</span>
+                        <span class="discount-amount">0 VNĐ</span>
+                    </div>
+                    <div class="summary-item total">
+                        <span>Tổng cộng:</span>
+                        <span class="final-total">0 VNĐ</span>
+                    </div>
+                </div>
+                <button class="confirm-payment-btn">Xác nhận đặt hàng</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="notification-dropdown">
+        <div class="notification-header">
+            <h3>Thông báo</h3>
+            <button class="close-notifications"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="notification-items">
+            <div class="notification-item">
+                <i class="fas fa-info-circle"></i>
+                <p>Chào mừng bạn đến với Tiệm Bánh Ngon!</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="profile-overlay" style="display: none;">
+        <div class="profile-form">
+            <div class="profile-header">
+                <h3>Thông tin tài khoản</h3>
+                <button class="close-profile" title="Đóng">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="profile-content">
+                <div class="profile-info">
+                    <div class="avatar-section">
+                        <img src="img/avatar.png" alt="Avatar" class="profile-avatar">
+                        <button class="change-avatar">Đổi ảnh</button>
+                    </div>
+                    <div class="info-section">
+                        <div class="info-item">
+                            <label>Họ và tên</label>
+                            <input type="text" id="profileName" readonly>
+                        </div>
+                        <div class="info-item">
+                            <label>Email</label>
+                            <input type="email" id="profileEmail" readonly>
+                        </div>
+                    </div>
+                </div>
+                <div class="order-history">
+                    <h4>Lịch sử mua hàng</h4>
+                    <div class="order-list">
+                        <!-- Orders will be added here dynamically -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Modal Thanh toán Dùng tại quán -->
+    <div id="dineInPaymentModal" class="payment-modal" style="display: none;">
+      <div class="modal-content">
+        <button class="close-modal-btn" onclick="document.getElementById('dineInPaymentModal').style.display='none'">&times;</button>
+        <h2>Xác nhận thanh toán (Dùng tại quán)</h2>
+        <div class="payment-methods">
+          <button class="payment-option" data-method="cash" onclick="selectPaymentMethod('cash', 'dineInPaymentModal')">
+            <i class="fas fa-money-bill"></i> Tiền mặt
+          </button>
+          <button class="payment-option" data-method="qr" onclick="selectPaymentMethod('qr', 'dineInPaymentModal')">
+            <i class="fas fa-qrcode"></i> QR Code
+          </button>
+        </div>
+        <div class="qr-section" style="display: none;"></div>
+        <button class="confirm-payment-btn" onclick="confirmPayment('dineInPaymentModal')">Xác nhận thanh toán</button>
+        <div class="payment-summary">
+          <span>Tổng cộng: </span><span class="total-price"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Thanh toán Mang về (TỐI ƯU) -->
+    <div id="takeawayPaymentModal" class="payment-modal" style="display: none;">
+      <div class="modal-content" style="max-height: 90vh; overflow-y: auto;">
+        <button class="close-modal-btn" onclick="document.getElementById('takeawayPaymentModal').style.display='none'">&times;</button>
+        <h2>Xác nhận thanh toán (Mang về)</h2>
+        <!-- Danh sách sản phẩm -->
+        <div class="order-products">
+        </div>
+        <!-- Địa chỉ giao hàng -->
+        <div class="delivery-address-list">
+          <div class="selected-address">
+            <label>Địa chỉ giao hàng:</label>
+            <div class="address-display">Chưa chọn địa chỉ</div>
+          </div>
+          <button class="add-address-btn" onclick="openAddressSelector()"><i class="fas fa-plus"></i> Chọn địa chỉ từ hồ sơ</button>
+        </div>
+        <!-- Modal chọn địa chỉ (ẩn, sẽ show bằng JS) -->
+        <div id="addressSelectorModal" class="payment-modal" style="display:none;z-index:1300;">
+          <div class="modal-content" style="max-width:400px;max-height:80vh;overflow-y:auto;">
+            <button class="close-modal-btn" onclick="document.getElementById('addressSelectorModal').style.display='none'">&times;</button>
+            <h3>Chọn địa chỉ giao hàng</h3>
+            <div class="address-list">
+              <!-- Danh sách địa chỉ sẽ render động từ profile user -->
+            </div>
+            <button class="confirm-address-btn" onclick="confirmSelectedAddress()">Xác nhận</button>
+          </div>
+        </div>
+        <!-- Voucher -->
+        <div class="voucher-section">
+          <input type="text" class="voucher-input" placeholder="Nhập mã giảm giá">
+          <button class="apply-voucher-btn" onclick="applyVoucher()">Áp dụng</button>
+        </div>
+        <!-- Phương thức thanh toán -->
+        <div class="payment-methods">
+          <button class="payment-option" data-method="cash" onclick="selectPaymentMethod('cash', 'takeawayPaymentModal')">
+            <i class="fas fa-money-bill"></i> Thanh toán khi nhận hàng
+          </button>
+          <button class="payment-option" data-method="card" onclick="selectPaymentMethod('card', 'takeawayPaymentModal')">
+            <i class="fas fa-credit-card"></i> Thanh toán qua thẻ
+          </button>
+          <button class="payment-option" data-method="momo" onclick="selectPaymentMethod('momo', 'takeawayPaymentModal')">
+            <i class="fas fa-wallet"></i> Ví MoMo
+          </button>
+        </div>
+        <!-- QR section (ẩn/hiện bằng JS) -->
+        <div class="qr-section" style="display: none;"></div>
+        <!-- Chi tiết thanh toán -->
+        <div class="payment-summary">
+          <div class="summary-row"><span>Tạm tính:</span><span class="subtotal">0 VNĐ</span></div>
+          <div class="summary-row"><span>Phí giao hàng:</span><span class="shipping-fee">30.000 VNĐ</span></div>
+          <div class="summary-row discount-row" style="display:none;"><span>Giảm giá:</span><span class="discount-amount">0 VNĐ</span></div>
+          <div class="summary-row total-row"><span>Tổng cộng:</span><span class="total-price">0 VNĐ</span></div>
+        </div>
+        <!-- Điều khoản -->
+        <div class="order-terms">
+          Khi nhấn <b>Đặt hàng</b>, bạn đồng ý với <a href="#" target="_blank">điều khoản của chúng tôi</a>.
+        </div>
+        <button class="confirm-payment-btn" onclick="confirmPayment('takeawayPaymentModal')">Đặt hàng</button>
+      </div>
+    </div>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
