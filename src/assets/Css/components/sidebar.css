@@ -1,0 +1,140 @@
+/* Sidebar styles */
+.sidebar {
+    width: 250px;
+    padding: 1rem;
+    background: white;
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow);
+    margin-right: 2rem;
+}
+
+.category-menu {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.category-title {
+    font-weight: 600;
+    color: var(--text-color);
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid var(--primary-color);
+}
+
+.filter-section {
+    margin-bottom: 1.5rem;
+}
+
+.filter-section h4 {
+    font-size: 1rem;
+    color: var(--text-color);
+    margin-bottom: 0.8rem;
+}
+
+.filter-options {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.filter-option {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    cursor: pointer;
+    transition: all 0.3s;
+    border-radius: var(--border-radius);
+}
+
+.filter-option:hover {
+    background: rgba(255, 107, 107, 0.1);
+}
+
+.filter-option input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--primary-color);
+}
+
+.filter-option label {
+    cursor: pointer;
+    flex: 1;
+    font-size: 0.9rem;
+    color: var(--text-color);
+}
+
+.price-range {
+    padding: 0 0.5rem;
+}
+
+.price-slider {
+    width: 100%;
+    margin: 1rem 0;
+}
+
+.price-inputs {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+}
+
+.price-input {
+    width: 80px;
+    padding: 0.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    font-size: 0.9rem;
+}
+
+.divider {
+    color: var(--text-color);
+}
+
+.apply-filters {
+    width: 100%;
+    padding: 0.8rem;
+    background: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: var(--border-radius);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s;
+    margin-top: 1rem;
+}
+
+.apply-filters:hover {
+    background: var(--primary-dark);
+    transform: translateY(-2px);
+}
+
+.apply-filters:active {
+    transform: translateY(0);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .sidebar {
+        width: 100%;
+        margin-right: 0;
+        margin-bottom: 1rem;
+    }
+
+    .category-menu {
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+
+    .filter-section {
+        width: calc(50% - 0.5rem);
+    }
+}
+
+@media (max-width: 480px) {
+    .filter-section {
+        width: 100%;
+    }
+}

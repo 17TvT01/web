@@ -1,0 +1,193 @@
+/* Form Overlays */
+.form-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.5);
+    display: none;
+    opacity: 0;
+    justify-content: center;
+    align-items: center;
+    transition: opacity 0.3s ease;
+    z-index: 1100;
+}
+
+.form-overlay.active {
+    display: flex;
+    opacity: 1;
+}
+
+/* Auth Form */
+.auth-form {
+    background: white;
+    padding: 2rem;
+    border-radius: var(--border-radius);
+    width: 400px;
+    max-width: 90%;
+    position: relative;
+    animation: slideIn 0.3s ease-out;
+}
+
+.form-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.form-header h2 {
+    margin: 0;
+    font-size: 1.5rem;
+    color: var(--text-color);
+}
+
+.close-form {
+    background: none;
+    border: none;
+    font-size: 1.2rem;
+    color: #666;
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 50%;
+    transition: all 0.3s;
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+}
+
+.close-form:hover {
+    background: rgba(0, 0, 0, 0.05);
+    color: #333;
+}
+
+/* Form Groups */
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+.form-control {
+    width: 100%;
+    padding: 0.8rem;
+    border: 2px solid var(--border-color);
+    border-radius: var(--border-radius);
+    font-size: 1rem;
+    transition: all 0.3s;
+}
+
+.form-control:focus {
+    border-color: var(--primary-color);
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(255, 107, 107, 0.1);
+}
+
+/* Password Field */
+.password-field {
+    position: relative;
+}
+
+.toggle-password {
+    position: absolute;
+    right: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #666;
+    cursor: pointer;
+    transition: color 0.3s;
+}
+
+.toggle-password:hover {
+    color: var(--primary-color);
+}
+
+/* Form Buttons */
+.form-buttons {
+    margin-top: 2rem;
+}
+
+.submit-btn {
+    width: 100%;
+    padding: 0.8rem;
+    background: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: var(--border-radius);
+    font-size: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.submit-btn:hover {
+    background: var(--primary-dark);
+    transform: translateY(-2px);
+}
+
+.submit-btn:active {
+    transform: translateY(0);
+}
+
+/* Switch Form Link */
+.switch-form {
+    margin-top: 1.5rem;
+    text-align: center;
+    color: #666;
+}
+
+.switch-form a {
+    color: var(--primary-color);
+    text-decoration: none;
+    margin-left: 0.5rem;
+    transition: color 0.3s;
+    cursor: pointer;
+}
+
+.switch-form a:hover {
+    color: var(--primary-dark);
+    text-decoration: underline;
+}
+
+/* Form Validation */
+.form-control.error {
+    border-color: #ff4757;
+}
+
+.error-message {
+    color: #ff4757;
+    font-size: 0.8rem;
+    margin-top: 0.3rem;
+}
+
+/* Animations */
+@keyframes slideIn {
+    from {
+        transform: translateY(-20px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+    .auth-form {
+        padding: 1.5rem;
+    }
+
+    .form-header h2 {
+        font-size: 1.2rem;
+    }
+
+    .form-control {
+        padding: 0.7rem;
+        font-size: 0.9rem;
+    }
+
+    .submit-btn {
+        padding: 0.7rem;
+        font-size: 0.9rem;
+    }
+}

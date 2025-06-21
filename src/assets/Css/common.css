@@ -1,0 +1,132 @@
+/* Common utility classes */
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 var(--spacing-md);
+    width: 100%;
+}
+
+.flex {
+    display: flex;
+}
+
+.flex-col {
+    flex-direction: column;
+}
+
+.items-center {
+    align-items: center;
+}
+
+.justify-between {
+    justify-content: space-between;
+}
+
+.justify-center {
+    justify-content: center;
+}
+
+.gap-1 {
+    gap: var(--spacing-sm);
+}
+
+.gap-2 {
+    gap: var(--spacing-md);
+}
+
+.gap-4 {
+    gap: var(--spacing-lg);
+}
+
+.w-full {
+    width: 100%;
+}
+
+.text-center {
+    text-align: center;
+}
+
+.relative {
+    position: relative;
+}
+
+.absolute {
+    position: absolute;
+}
+
+.fixed {
+    position: fixed;
+}
+
+.sticky {
+    position: sticky;
+}
+
+.hidden {
+    display: none;
+}
+
+.block {
+    display: block;
+}
+
+.invisible {
+    visibility: hidden;
+}
+
+.visible {
+    visibility: visible;
+}
+
+/* Margins */
+.mt-1 { margin-top: var(--spacing-sm); }
+.mt-2 { margin-top: var(--spacing-md); }
+.mt-4 { margin-top: var(--spacing-lg); }
+
+.mb-1 { margin-bottom: var(--spacing-sm); }
+.mb-2 { margin-bottom: var(--spacing-md); }
+.mb-4 { margin-bottom: var(--spacing-lg); }
+
+.mx-auto { margin-left: auto; margin-right: auto; }
+
+/* Paddings */
+.p-1 { padding: var(--spacing-sm); }
+.p-2 { padding: var(--spacing-md); }
+.p-4 { padding: var(--spacing-lg); }
+
+/* Text colors */
+.text-primary { color: var(--primary-color); }
+.text-dark { color: var(--text-color); }
+.text-light { color: var(--bg-color); }
+.text-muted { color: #666; }
+
+/* Background colors */
+.bg-primary { background-color: var(--primary-color); }
+.bg-light { background-color: var(--bg-color); }
+.bg-white { background-color: white; }
+
+/* Border radius */
+.rounded { border-radius: var(--border-radius); }
+.rounded-full { border-radius: 9999px; }
+
+/* Shadows */
+.shadow-sm {
+    box-shadow: 0 1px 2px var(--shadow-color);
+}
+
+.shadow {
+    box-shadow: 0 2px 4px var(--shadow-color);
+}
+
+.shadow-lg {
+    box-shadow: 0 4px 6px var(--shadow-color);
+}
+
+/* Transitions */
+.transition {
+    transition: var(--transition);
+}
+
+.hover-translate:hover {
+    transform: translateY(-2px);
+}

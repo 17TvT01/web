@@ -1,5 +1,14 @@
-// Add these helper functions at the top of the file
-window.renderStars = function(rating) {
+// Import các module
+import { renderStars } from '../../utils/rating';
+import { cartService } from '../../services/cartService';
+import { paymentService } from '../../services/paymentService';
+import { authService } from '../../services/authService';
+import { chatService } from '../../services/chatService';
+import { productService } from '../../services/productService';
+import { uiService } from '../../services/uiService';
+import { notificationService } from '../../services/notificationService';
+
+// Khởi tạo các service
     // Ensure rating is a number and between 0-5
     rating = Math.min(5, Math.max(0, parseFloat(rating) || 0));
     
@@ -467,303 +476,6 @@ window.handleQRDone = function(modalId) {
     addNotification(message, 'success');
 }
 
-window.updateQuantity = function(btn, change) {
-    const quantitySpan = btn.parentElement.querySelector('span');
-    let quantity = parseInt(quantitySpan.textContent) + change;
-    if (quantity > 0) {
-        quantitySpan.textContent = quantity;
-        updateCartTotal();
-        saveCart(); // Lưu sau khi cập nhật số lượng
-    } else {
-        removeFromCart(btn.parentElement.parentElement);
-    }
-}
-
-window.updateCartTotal = function() {
-    let subtotal = 0;
-    document.querySelectorAll('.cart-item').forEach(item => {
-        const price = parseInt(item.dataset.price);
-        const quantity = parseInt(item.querySelector('.item-quantity span').textContent);
-        subtotal += price * quantity;
-    });
-
-    const subtotalEl = document.querySelector('.subtotal-price');
-    const totalEl = document.querySelector('.total-price');
-    
-    subtotalEl.textContent = subtotal.toLocaleString('vi-VN') + ' VNĐ';
-    totalEl.textContent = subtotal.toLocaleString('vi-VN') + ' VNĐ';
-}
-
-window.removeFromCart = function(button) {
-    button.parentElement.remove();
-    cartCount--;
-    document.querySelector('.cart-count').textContent = cartCount;
-    updateCartTotal();
-    saveCart(); // Lưu sau khi xóa
-}
-
-window.clearNotifications = function() {
-    document.querySelector('.notification-items').innerHTML = '';
-}
-
-window.showForm = function(type) {
-    document.getElementById(type + 'Form').style.display = 'flex';
-}
-
-window.hideForm = function(type) {
-    document.getElementById(type + 'Form').style.display = 'none';
-}
-
-window.handleLogin = async function(event) {
-    event.preventDefault();
-    const email = event.target.querySelector('input[type="text"]').value;
-    const password = event.target.querySelector('input[type="password"]').value;
-
-    try {
-        const response = await fetch('Asset/Data/users.json');
-        const data = await response.json();
-        const user = data.users.find(u => u.email === email && u.password === password);
-
-        if (user) {
-            // Store user data in localStorage instead of sessionStorage
-            localStorage.setItem('currentUser', JSON.stringify(user));
-            updateUIAfterLogin(user);
-            hideForm('login');
-            addNotification(`Chào mừng ${user.name} đã quay trở lại!`, 'success');
-            
-            // Kiểm tra nếu đang trong quá trình thanh toán mang về
-            const delivery = document.querySelector('input[name="delivery"]:checked')?.value;
-            if (delivery === 'dine-in') {
-                
-            }
-        } else {
-            alert('Email hoặc mật khẩu không đúng!');
-        }
-    } catch (error) {
-        console.error('Login error:', error);
-        alert('Có lỗi xảy ra khi đăng nhập');
-    }
-}
-
-window.updateUIAfterLogin = function(user) {
-    document.querySelector('.auth-buttons').style.display = 'none';
-    const userIcon = document.querySelector('.user-icon');
-    userIcon.style.display = 'block';
-    
-    // Update user info
-    userIcon.querySelector('img').src = user.avatar;
-    userIcon.querySelector('.user-name').textContent = user.name;
-}
-
-window.showPaymentForm = function() {
-    // Ẩn toàn bộ modal cũ và modal mới trước khi mở modal mới
-    const dineInModal = document.getElementById('dineInPaymentModal');
-    const takeawayModal = document.getElementById('takeawayPaymentModal');
-    const oldPaymentForm = document.getElementById('paymentForm');
-    const oldPaymentOverlay = document.querySelector('.payment-overlay');
-    if (oldPaymentForm) oldPaymentForm.style.display = 'none';
-    if (oldPaymentOverlay) oldPaymentOverlay.style.display = 'none';
-    if (dineInModal) dineInModal.style.display = 'none';
-    if (takeawayModal) takeawayModal.style.display = 'none';
-
-    // Lấy loại đơn hàng
-    const delivery = document.querySelector('input[name="delivery"]:checked')?.value;
-    if (delivery === 'dine-in') {
-        if (dineInModal) {
-            dineInModal.style.display = 'flex';
-            window.currentPaymentModal = dineInModal;
-            // Cập nhật tổng tiền
-            const total = document.querySelector('.total-price').textContent;
-            dineInModal.querySelector('.total-price').textContent = total;
-        }
-    } else if (delivery === 'takeaway') {
-        if (takeawayModal) {
-            takeawayModal.style.display = 'flex';
-            window.currentPaymentModal = takeawayModal;
-            // Cập nhật tổng tiền
-            const total = document.querySelector('.total-price').textContent;
-            takeawayModal.querySelector('.total-price').textContent = total;
-        }
-    }
-}
-
-window.selectPaymentMethod = function(method, modalId) {
-    // modalId: 'dineInPaymentModal' hoặc 'takeawayPaymentModal'
-    const modal = document.getElementById(modalId);
-    if (!modal) return;
-    // Đánh dấu active cho option
-    modal.querySelectorAll('.payment-option').forEach(opt => opt.classList.remove('active'));
-    const selectedOption = modal.querySelector(`.payment-option[data-method="${method}"]`);
-    if (selectedOption) selectedOption.classList.add('active');
-    // QR section
-    const qrSection = modal.querySelector('.qr-section');
-    const confirmBtn = modal.querySelector('.confirm-payment-btn');
-    if (method === 'qr') {
-        if (qrSection) {
-            qrSection.style.display = 'block';
-            // Tạo nội dung QR
-            const totalAmount = document.querySelector('.total-price').textContent.replace(' VNĐ', '').replace(/\./g, '');
-            qrSection.innerHTML = `
-                <div class="payment-instructions">
-                    <h3>Hướng dẫn thanh toán QR</h3>
-                    <p>1. Mở ứng dụng ngân hàng hoặc ví điện tử của bạn</p>
-                    <p>2. Quét mã QR bên dưới</p>
-                    <p>3. Kiểm tra số tiền: <span class="amount">${parseInt(totalAmount).toLocaleString('vi-VN')} VNĐ</span></p>
-                    <p>4. Xác nhận thanh toán</p>
-                    ${modalId === 'dineInPaymentModal' ? '<p>5. Đưa màn hình xác nhận cho nhân viên</p>' : ''}
-                </div>
-                <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=Total:${totalAmount}VND" alt="QR Code">
-                <button class="qr-done-btn" onclick="handleQRDone('${modalId}')">Đã quét xong</button>
-            `;
-        }
-        if (confirmBtn) confirmBtn.style.display = 'none';
-    } else {
-        if (qrSection) qrSection.style.display = 'none';
-        if (confirmBtn) confirmBtn.style.display = 'block';
-    }
-    // Lưu phương thức đã chọn
-    window.selectedPaymentMethod = method;
-}
-
-window.handleQRDone = function(modalId) {
-    const modal = document.getElementById(modalId);
-    if (modal) modal.style.display = 'none';
-    document.querySelector('.cart-items').innerHTML = '';
-    cartCount = 0;
-    document.querySelector('.cart-count').textContent = cartCount;
-    updateCartTotal();
-    saveCart();
-    const message = modalId === 'dineInPaymentModal'
-        ? 'Thanh toán QR thành công! Vui lòng đưa màn hình xác nhận cho nhân viên.'
-        : 'Thanh toán QR thành công! Đơn hàng sẽ được giao đến bạn.';
-    addNotification(message, 'success');
-}
-
-window.handleLogin = async function(event) {
-    event.preventDefault();
-    const email = event.target.querySelector('input[type="text"]').value;
-    const password = event.target.querySelector('input[type="password"]').value;
-
-    try {
-        const response = await fetch('Asset/Data/users.json');
-        const data = await response.json();
-        const user = data.users.find(u => u.email === email && u.password === password);
-
-        if (user) {
-            // Store user data in localStorage instead of sessionStorage
-            localStorage.setItem('currentUser', JSON.stringify(user));
-            updateUIAfterLogin(user);
-            hideForm('login');
-            addNotification(`Chào mừng ${user.name} đã quay trở lại!`, 'success');
-            
-            // Kiểm tra nếu đang trong quá trình thanh toán mang về
-            const delivery = document.querySelector('input[name="delivery"]:checked')?.value;
-            if (delivery === 'dine-in') {
-                
-            }
-        } else {
-            alert('Email hoặc mật khẩu không đúng!');
-        }
-    } catch (error) {
-        console.error('Login error:', error);
-        alert('Có lỗi xảy ra khi đăng nhập');
-    }
-}
-
-window.updateUIAfterLogin = function(user) {
-    document.querySelector('.auth-buttons').style.display = 'none';
-    const userIcon = document.querySelector('.user-icon');
-    userIcon.style.display = 'block';
-    
-    // Update user info
-    userIcon.querySelector('img').src = user.avatar;
-    userIcon.querySelector('.user-name').textContent = user.name;
-}
-
-window.showPaymentForm = function() {
-    // Ẩn toàn bộ modal cũ và modal mới trước khi mở modal mới
-    const dineInModal = document.getElementById('dineInPaymentModal');
-    const takeawayModal = document.getElementById('takeawayPaymentModal');
-    const oldPaymentForm = document.getElementById('paymentForm');
-    const oldPaymentOverlay = document.querySelector('.payment-overlay');
-    if (oldPaymentForm) oldPaymentForm.style.display = 'none';
-    if (oldPaymentOverlay) oldPaymentOverlay.style.display = 'none';
-    if (dineInModal) dineInModal.style.display = 'none';
-    if (takeawayModal) takeawayModal.style.display = 'none';
-
-    // Lấy loại đơn hàng
-    const delivery = document.querySelector('input[name="delivery"]:checked')?.value;
-    if (delivery === 'dine-in') {
-        if (dineInModal) {
-            dineInModal.style.display = 'flex';
-            window.currentPaymentModal = dineInModal;
-            // Cập nhật tổng tiền
-            const total = document.querySelector('.total-price').textContent;
-            dineInModal.querySelector('.total-price').textContent = total;
-        }
-    } else if (delivery === 'takeaway') {
-        if (takeawayModal) {
-            takeawayModal.style.display = 'flex';
-            window.currentPaymentModal = takeawayModal;
-            // Cập nhật tổng tiền
-            const total = document.querySelector('.total-price').textContent;
-            takeawayModal.querySelector('.total-price').textContent = total;
-        }
-    }
-}
-
-window.selectPaymentMethod = function(method, modalId) {
-    // modalId: 'dineInPaymentModal' hoặc 'takeawayPaymentModal'
-    const modal = document.getElementById(modalId);
-    if (!modal) return;
-    // Đánh dấu active cho option
-    modal.querySelectorAll('.payment-option').forEach(opt => opt.classList.remove('active'));
-    const selectedOption = modal.querySelector(`.payment-option[data-method="${method}"]`);
-    if (selectedOption) selectedOption.classList.add('active');
-    // QR section
-    const qrSection = modal.querySelector('.qr-section');
-    const confirmBtn = modal.querySelector('.confirm-payment-btn');
-    if (method === 'qr') {
-        if (qrSection) {
-            qrSection.style.display = 'block';
-            // Tạo nội dung QR
-            const totalAmount = document.querySelector('.total-price').textContent.replace(' VNĐ', '').replace(/\./g, '');
-            qrSection.innerHTML = `
-                <div class="payment-instructions">
-                    <h3>Hướng dẫn thanh toán QR</h3>
-                    <p>1. Mở ứng dụng ngân hàng hoặc ví điện tử của bạn</p>
-                    <p>2. Quét mã QR bên dưới</p>
-                    <p>3. Kiểm tra số tiền: <span class="amount">${parseInt(totalAmount).toLocaleString('vi-VN')} VNĐ</span></p>
-                    <p>4. Xác nhận thanh toán</p>
-                    ${modalId === 'dineInPaymentModal' ? '<p>5. Đưa màn hình xác nhận cho nhân viên</p>' : ''}
-                </div>
-                <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=Total:${totalAmount}VND" alt="QR Code">
-                <button class="qr-done-btn" onclick="handleQRDone('${modalId}')">Đã quét xong</button>
-            `;
-        }
-        if (confirmBtn) confirmBtn.style.display = 'none';
-    } else {
-        if (qrSection) qrSection.style.display = 'none';
-        if (confirmBtn) confirmBtn.style.display = 'block';
-    }
-    // Lưu phương thức đã chọn
-    window.selectedPaymentMethod = method;
-}
-
-window.handleQRDone = function(modalId) {
-    const modal = document.getElementById(modalId);
-    if (modal) modal.style.display = 'none';
-    document.querySelector('.cart-items').innerHTML = '';
-    cartCount = 0;
-    document.querySelector('.cart-count').textContent = cartCount;
-    updateCartTotal();
-    saveCart();
-    const message = modalId === 'dineInPaymentModal'
-        ? 'Thanh toán QR thành công! Vui lòng đưa màn hình xác nhận cho nhân viên.'
-        : 'Thanh toán QR thành công! Đơn hàng sẽ được giao đến bạn.';
-    addNotification(message, 'success');
-}
-
 window.logout = function() {
     localStorage.removeItem('currentUser');
     document.querySelector('.auth-buttons').style.display = 'flex';
@@ -872,6 +584,16 @@ function addNotification(message, type = 'info') {
     notificationItems.insertAdjacentHTML('afterbegin', notification);
 }
 
+window.showToast = function(message, type = 'success') {
+    // type: 'success' | 'error' | 'info'
+    const toast = document.createElement('div');
+    toast.className = `toast-notification ${type}`;
+    toast.innerHTML = `<i class='fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'times-circle' : 'info-circle'}'></i> <span>${message}</span>`;
+    document.body.appendChild(toast);
+    setTimeout(() => { toast.style.opacity = 0; }, 2200);
+    setTimeout(() => { toast.remove(); }, 2700);
+}
+
 // Thêm hàm lưu giỏ hàng
 function saveCart() {
     const cartItems = document.querySelector('.cart-items').innerHTML;
@@ -913,7 +635,6 @@ document.addEventListener('DOMContentLoaded', async function() {
         });
     });
 
-    // Check for logged in user
     const savedUser = localStorage.getItem('currentUser');
     if (savedUser) {
         updateUIAfterLogin(JSON.parse(savedUser));
