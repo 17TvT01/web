@@ -1,15 +1,18 @@
 import { useEffect, useState } from 'react';
 import { productService } from '../../services/productService';
-import { Product } from '../../types';
 import { cartService } from '../../services/cartService';
 import { notificationService } from '../../services/notificationService';
-import './ProductList.css';
+import { MainCategory, Product, FilterState } from '../../types';
+import '../../assets/css/components/product-grid.css';
 
 interface Props {
-    category: string;
+    category: MainCategory;
+    filters: FilterState;
+    sortBy: string;
+    searchQuery: string;
 }
 
-export const ProductList = ({ category }: Props) => {
+export const ProductList = ({ category, filters, sortBy, searchQuery }: Props) => {
     const [products, setProducts] = useState<Product[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -17,10 +20,62 @@ export const ProductList = ({ category }: Props) => {
         const fetchProducts = async () => {
             setLoading(true);
             try {
-                const response = await productService.getProducts();
-                const filteredProducts = category === 'all' 
-                    ? response
-                    : response.filter(p => p.category === category);
+                const allProducts = await productService.getProducts();
+                let filteredProducts = allProducts;
+
+                // Filter by main category
+                if (category !== 'all') {
+                    filteredProducts = filteredProducts.filter(p => p.category === category);
+                }
+
+                // Apply subcategory filters
+                if (Object.keys(filters).length > 0) {
+                    filteredProducts = filteredProducts.filter(product => {
+                        return Object.entries(filters).every(([filterType, selectedValues]) => {
+                            if (selectedValues.length === 0) return true;
+                            
+                            const productFilters = product.filters as any;
+                            if (!productFilters) return false;
+
+                            // Check if product matches any of the selected values for this filter type
+                            if (Array.isArray(productFilters[filterType])) {
+                                return selectedValues.some(value => 
+                                    productFilters[filterType].includes(value)
+                                );
+                            }
+                            return selectedValues.includes(productFilters[filterType]);
+                        });
+                    });
+                }
+
+                // Apply search filter
+                if (searchQuery) {
+                    const query = searchQuery.toLowerCase();
+                    filteredProducts = filteredProducts.filter(product =>
+                        product.name.toLowerCase().includes(query)
+                    );
+                }
+
+                // Apply sorting
+                if (sortBy) {
+                    filteredProducts = [...filteredProducts].sort((a, b) => {
+                        switch (sortBy) {
+                            case 'price-asc':
+                                return (a.onSale ? a.salePrice! : a.price) - (b.onSale ? b.salePrice! : b.price);
+                            case 'price-desc':
+                                return (b.onSale ? b.salePrice! : b.price) - (a.onSale ? a.salePrice! : a.price);
+                            case 'name-asc':
+                                return a.name.localeCompare(b.name);
+                            case 'name-desc':
+                                return b.name.localeCompare(a.name);
+                            case 'newest':
+                                return b.isNew === a.isNew ? 0 : b.isNew ? 1 : -1;
+                            default:
+                                return 0;
+                        }
+                    });
+                }
+
                 setProducts(filteredProducts);
             } catch (error) {
                 console.error('Error fetching products:', error);
@@ -31,7 +86,7 @@ export const ProductList = ({ category }: Props) => {
         };
 
         fetchProducts();
-    }, [category]);
+    }, [category, filters, sortBy, searchQuery]);
 
     const handleAddToCart = async (product: Product) => {
         try {
@@ -54,8 +109,9 @@ export const ProductList = ({ category }: Props) => {
 
     if (products.length === 0) {
         return (
-            <div className="loading-container">
-                <p>Không có sản phẩm nào trong danh mục này</p>
+            <div className="empty-products">
+                <i className="fas fa-box-open"></i>
+                <p>Không tìm thấy sản phẩm phù hợp</p>
             </div>
         );
     }
@@ -71,14 +127,31 @@ export const ProductList = ({ category }: Props) => {
                     </div>
                     <div className="product-info">
                         <h3>{product.name}</h3>
+                        {product.filters && (
+                            <div className="product-tags">
+                                {Object.entries(product.filters).map(([type, values]) => (
+                                    Array.isArray(values) ? values.map(value => (
+                                        <span key={`${type}-${value}`} className="tag">
+                                            {value}
+                                        </span>
+                                    )) : null
+                                ))}
+                            </div>
+                        )}
                         <div className="product-price">
                             {product.onSale ? (
                                 <>
-                                    <span className="original-price">{product.price.toLocaleString()}₫</span>
-                                    <span className="sale-price">{product.salePrice?.toLocaleString()}₫</span>
+                                    <span className="original-price">
+                                        {product.price.toLocaleString()}₫
+                                    </span>
+                                    <span className="sale-price">
+                                        {product.salePrice?.toLocaleString()}₫
+                                    </span>
                                 </>
                             ) : (
-                                <span className="sale-price">{product.price.toLocaleString()}₫</span>
+                                <span className="sale-price">
+                                    {product.price.toLocaleString()}₫
+                                </span>
                             )}
                         </div>
                         <div className="product-actions">

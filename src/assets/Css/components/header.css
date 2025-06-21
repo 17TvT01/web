@@ -7,7 +7,7 @@ header {
     top: 0;
     left: 0;
     right: 0;
-    z-index: 1000;
+    z-index: var(--z-sticky);
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -39,6 +39,12 @@ header {
     background: #f5f5f5;
     border-radius: 25px;
     padding: 0.5rem 1rem;
+    transition: all 0.3s ease;
+}
+
+.search-bar:focus-within {
+    background: white;
+    box-shadow: 0 0 0 2px var(--primary-color);
 }
 
 .search-bar input {
@@ -80,11 +86,13 @@ header {
     cursor: pointer;
     position: relative;
     transition: all 0.3s;
+    border-radius: 50%;
 }
 
 .notification-icon:hover,
 .cart-icon:hover {
     color: var(--primary-color);
+    background: rgba(255, 107, 107, 0.1);
     transform: translateY(-2px);
 }
 
@@ -107,6 +115,7 @@ header {
 .auth-buttons {
     display: flex;
     gap: 1rem;
+    margin-left: 1rem;
 }
 
 .auth-btn {
@@ -116,7 +125,13 @@ header {
     font-weight: 500;
     cursor: pointer;
     transition: all 0.3s;
-    border: none;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.auth-btn i {
+    font-size: 1rem;
 }
 
 .login-btn {
@@ -175,6 +190,13 @@ header {
 }
 
 /* Responsive */
+@media (max-width: 1024px) {
+    .search-section {
+        max-width: 400px;
+        margin: 0 1rem;
+    }
+}
+
 @media (max-width: 768px) {
     header {
         padding: 1rem;
@@ -191,18 +213,9 @@ header {
     .user-name {
         display: none;
     }
-}
 
-@media (max-width: 480px) {
-    header {
-        padding: 0.8rem;
-    }
-
-    .logo {
-        width: 100px;
-    }
-
-    .header-icons {
-        gap: 0.5rem;
+    .notification-icon,
+    .cart-icon {
+        font-size: 1.1rem;
     }
 }

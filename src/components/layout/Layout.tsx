@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Header } from '../Header/Header';
 import { ProductList } from '../Product/ProductList';
+import { ProductNavigation } from '../Product/ProductNavigation';
 import { Footer } from '../Footer/Footer';
 import { Cart } from '../Cart/Cart';
 import { PaymentModal } from '../Payment/PaymentModal';
@@ -8,135 +9,172 @@ import { PaymentOptionsModal } from '../Payment/PaymentOptionsModal';
 import { OrderTypeModal } from '../Order/OrderTypeModal';
 import { Notification } from '../Notification/Notification';
 import { uiService } from '../../services/uiService';
+import { 
+    MainCategory, 
+    CAKE_FILTERS, 
+    FOOD_FILTERS, 
+    DRINK_FILTERS, 
+    FilterState,
+    SORT_OPTIONS 
+} from '../../types';
+
+type FilterConfig = {
+    key: string;
+    title: string;
+};
 
 export const Layout = () => {
-    const [activeCategory, setActiveCategory] = useState('all');
-    const [priceRange, setPriceRange] = useState({ min: 0, max: 1000000 });
-    const [selectedFilters, setSelectedFilters] = useState({
-        inStock: false,
-        onSale: false,
-        newArrival: false
-    });
+    const [activeCategory, setActiveCategory] = useState<MainCategory>('all');
+    const [selectedFilters, setSelectedFilters] = useState<FilterState>({});
+    const [sortBy, setSortBy] = useState<string>('');
+    const [searchQuery, setSearchQuery] = useState('');
 
     useEffect(() => {
-        // Initialize services when component mounts
         uiService.initialize();
     }, []);
 
-    const handleCategoryChange = (category: string) => {
+    const handleCategoryChange = (category: MainCategory) => {
         setActiveCategory(category);
+        setSelectedFilters({}); // Reset filters when changing category
+        setSortBy(''); // Reset sort when changing category
+    };
+
+    const handleFilterChange = (filterType: string, value: string) => {
+        setSelectedFilters(prev => {
+            const currentFilters = prev[filterType] || [];
+            if (currentFilters.includes(value)) {
+                return {
+                    ...prev,
+                    [filterType]: currentFilters.filter(v => v !== value)
+                };
+            } else {
+                return {
+                    ...prev,
+                    [filterType]: [...currentFilters, value]
+                };
+            }
+        });
+    };
+
+    const handleSortChange = (sortOption: string) => {
+        setSortBy(sortOption);
+    };
+
+    const clearFilters = () => {
+        setSelectedFilters({});
+        setSortBy('');
+        setSearchQuery('');
+    };
+
+    const getSelectedFiltersCount = () => {
+        return Object.values(selectedFilters).reduce((count, values) => count + values.length, 0);
+    };
+
+    const renderFilters = () => {
+        let currentFilters: typeof CAKE_FILTERS | typeof FOOD_FILTERS | typeof DRINK_FILTERS;
+        let filterSections: FilterConfig[];
+
+        switch (activeCategory) {
+            case 'cake':
+                currentFilters = CAKE_FILTERS;
+                filterSections = [
+                    { key: 'occasion', title: 'Dịp sử dụng' },
+                    { key: 'flavor', title: 'Hương vị' },
+                    { key: 'ingredient', title: 'Thành phần chính' },
+                    { key: 'size', title: 'Kích thước' }
+                ];
+                break;
+            case 'food':
+                currentFilters = FOOD_FILTERS;
+                filterSections = [{ key: 'type', title: 'Loại đồ ăn' }];
+                break;
+            case 'drink':
+                currentFilters = DRINK_FILTERS;
+                filterSections = [{ key: 'type', title: 'Loại nước' }];
+                break;
+            default:
+                return null;
+        }
+
+        const filterCount = getSelectedFiltersCount();
+
+        return (
+            <>
+                <div className="filter-header">
+                    <h3 className="category-title">Bộ lọc sản phẩm</h3>
+                    {filterCount > 0 && (
+                        <button className="clear-filters" onClick={clearFilters}>
+                            Xóa ({filterCount})
+                        </button>
+                    )}
+                </div>
+
+                {filterSections.map(section => (
+                    <div key={section.key} className="filter-section">
+                        <h4>{section.title}</h4>
+                        <div className="filter-options">
+                            {(currentFilters as any)[section.key].map((option: string) => (
+                                <div key={option} className="filter-option">
+                                    <input
+                                        type="checkbox"
+                                        id={`${section.key}-${option}`}
+                                        checked={selectedFilters[section.key]?.includes(option) || false}
+                                        onChange={() => handleFilterChange(section.key, option)}
+                                    />
+                                    <label htmlFor={`${section.key}-${option}`}>{option}</label>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                ))}
+
+                <div className="sort-section">
+                    <span className="sort-label">Sắp xếp theo:</span>
+                    <div className="sort-options">
+                        {SORT_OPTIONS.map(option => (
+                            <button
+                                key={option.id}
+                                className={`sort-btn ${sortBy === option.id ? 'active' : ''}`}
+                                onClick={() => handleSortChange(option.id)}
+                            >
+                                {option.label}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            </>
+        );
     };
 
     return (
         <>
-            <Header />
+            <Header onSearch={setSearchQuery} />
             
-            <nav>
-                <div className="container">
-                    <div className="nav-buttons">
-                        <button 
-                            className={`nav-btn ${activeCategory === 'all' ? 'active' : ''}`}
-                            onClick={() => handleCategoryChange('all')}
-                        >
-                            Tất cả
-                        </button>
-                        <button 
-                            className={`nav-btn ${activeCategory === 'cake' ? 'active' : ''}`}
-                            onClick={() => handleCategoryChange('cake')}
-                        >
-                            Bánh kem
-                        </button>
-                        <button 
-                            className={`nav-btn ${activeCategory === 'drink' ? 'active' : ''}`}
-                            onClick={() => handleCategoryChange('drink')}
-                        >
-                            Đồ uống
-                        </button>
-                        <button 
-                            className={`nav-btn ${activeCategory === 'food' ? 'active' : ''}`}
-                            onClick={() => handleCategoryChange('food')}
-                        >
-                            Đồ ăn
-                        </button>
-                    </div>
-                </div>
-            </nav>
+            <ProductNavigation 
+                activeCategory={activeCategory}
+                onCategoryChange={handleCategoryChange}
+            />
 
             <div className="main-container">
-                <aside className="sidebar">
-                    <div className="category-menu">
-                        <h3 className="category-title">Bộ lọc sản phẩm</h3>
-                        
-                        <div className="filter-section">
-                            <h4>Trạng thái</h4>
-                            <div className="filter-options">
-                                <div className="filter-option">
-                                    <input 
-                                        type="checkbox"
-                                        id="inStock"
-                                        checked={selectedFilters.inStock}
-                                        onChange={() => {}}
-                                    />
-                                    <label htmlFor="inStock">Còn hàng</label>
-                                </div>
-                                <div className="filter-option">
-                                    <input 
-                                        type="checkbox"
-                                        id="onSale"
-                                        checked={selectedFilters.onSale}
-                                        onChange={() => {}}
-                                    />
-                                    <label htmlFor="onSale">Đang giảm giá</label>
-                                </div>
-                                <div className="filter-option">
-                                    <input 
-                                        type="checkbox"
-                                        id="newArrival"
-                                        checked={selectedFilters.newArrival}
-                                        onChange={() => {}}
-                                    />
-                                    <label htmlFor="newArrival">Hàng mới về</label>
-                                </div>
-                            </div>
+                {activeCategory !== 'all' && (
+                    <aside className="sidebar">
+                        <div className="category-menu">
+                            {renderFilters()}
                         </div>
-
-                        <div className="filter-section">
-                            <h4>Giá</h4>
-                            <div className="price-range">
-                                <div className="price-inputs">
-                                    <input 
-                                        type="number"
-                                        className="price-input"
-                                        placeholder="Min"
-                                        value={priceRange.min}
-                                        onChange={() => {}}
-                                    />
-                                    <span className="divider">-</span>
-                                    <input 
-                                        type="number"
-                                        className="price-input"
-                                        placeholder="Max"
-                                        value={priceRange.max}
-                                        onChange={() => {}}
-                                    />
-                                </div>
-                            </div>
-                            <button className="apply-filters">
-                                Áp dụng
-                            </button>
-                        </div>
-                    </div>
-                </aside>
+                    </aside>
+                )}
 
                 <main className="content-area">
-                    <ProductList category={activeCategory} />
+                    <ProductList 
+                        category={activeCategory} 
+                        filters={selectedFilters}
+                        sortBy={sortBy}
+                        searchQuery={searchQuery}
+                    />
                 </main>
             </div>
 
             <Footer />
-
-            {/* Overlay */}
-            <div className="dropdown-overlay"></div>
 
             {/* Auth Forms */}
             <div className="form-overlay login-form">
@@ -149,21 +187,31 @@ export const Layout = () => {
                     </div>
                     <form onSubmit={(e) => window.handleLogin(e)}>
                         <div className="form-group">
+                            <label htmlFor="login-email">Email</label>
                             <input 
-                                type="text" 
+                                type="text"
+                                id="login-email" 
                                 className="form-control" 
-                                placeholder="Email" 
+                                placeholder="Nhập email của bạn" 
                                 required 
                             />
                         </div>
                         <div className="form-group password-field">
+                            <label htmlFor="login-password">Mật khẩu</label>
                             <input 
-                                type="password" 
+                                type="password"
+                                id="login-password"
                                 className="form-control" 
-                                placeholder="Mật khẩu" 
+                                placeholder="Nhập mật khẩu" 
                                 required 
                             />
-                            <i className="fas fa-eye toggle-password"></i>
+                            <button 
+                                type="button" 
+                                className="toggle-password"
+                                onClick={() => window.togglePasswordVisibility('login-password')}
+                            >
+                                <i className="fas fa-eye"></i>
+                            </button>
                         </div>
                         <div className="form-buttons">
                             <button type="submit" className="submit-btn">Đăng nhập</button>
@@ -171,8 +219,7 @@ export const Layout = () => {
                     </form>
                     <div className="switch-form">
                         Chưa có tài khoản?
-                        <a href="#" onClick={(e) => {
-                            e.preventDefault();
+                        <a onClick={() => {
                             uiService.hideForm('login');
                             setTimeout(() => uiService.showForm('register'), 300);
                         }}>
@@ -192,38 +239,58 @@ export const Layout = () => {
                     </div>
                     <form onSubmit={(e) => window.handleRegister(e)}>
                         <div className="form-group">
+                            <label htmlFor="register-name">Họ và tên</label>
                             <input 
-                                type="text" 
+                                type="text"
+                                id="register-name"
                                 className="form-control" 
-                                placeholder="Họ và tên" 
+                                placeholder="Nhập họ và tên" 
                                 required 
                             />
                         </div>
                         <div className="form-group">
+                            <label htmlFor="register-email">Email</label>
                             <input 
-                                type="email" 
+                                type="email"
+                                id="register-email"
                                 className="form-control" 
-                                placeholder="Email" 
+                                placeholder="Nhập email" 
                                 required 
                             />
                         </div>
                         <div className="form-group password-field">
+                            <label htmlFor="register-password">Mật khẩu</label>
                             <input 
-                                type="password" 
+                                type="password"
+                                id="register-password"
                                 className="form-control" 
-                                placeholder="Mật khẩu" 
+                                placeholder="Nhập mật khẩu" 
                                 required 
                             />
-                            <i className="fas fa-eye toggle-password"></i>
+                            <button 
+                                type="button" 
+                                className="toggle-password"
+                                onClick={() => window.togglePasswordVisibility('register-password')}
+                            >
+                                <i className="fas fa-eye"></i>
+                            </button>
                         </div>
                         <div className="form-group password-field">
+                            <label htmlFor="register-confirm">Xác nhận mật khẩu</label>
                             <input 
-                                type="password" 
+                                type="password"
+                                id="register-confirm"
                                 className="form-control" 
                                 placeholder="Nhập lại mật khẩu" 
                                 required 
                             />
-                            <i className="fas fa-eye toggle-password"></i>
+                            <button 
+                                type="button" 
+                                className="toggle-password"
+                                onClick={() => window.togglePasswordVisibility('register-confirm')}
+                            >
+                                <i className="fas fa-eye"></i>
+                            </button>
                         </div>
                         <div className="form-buttons">
                             <button type="submit" className="submit-btn">Đăng ký</button>
@@ -231,8 +298,7 @@ export const Layout = () => {
                     </form>
                     <div className="switch-form">
                         Đã có tài khoản?
-                        <a href="#" onClick={(e) => {
-                            e.preventDefault();
+                        <a onClick={() => {
                             uiService.hideForm('register');
                             setTimeout(() => uiService.showForm('login'), 300);
                         }}>
@@ -242,44 +308,13 @@ export const Layout = () => {
                 </div>
             </div>
 
-            {/* Order Flow Components */}
+            {/* Overlays and Modals */}
+            <div className="dropdown-overlay"></div>
             <Cart />
             <Notification />
             <PaymentOptionsModal />
             <PaymentModal />
-
-            {/* Chat bot */}
-            <div className="chatbot">
-                <button className="chat-btn" onClick={() => window.toggleChatbot()}>
-                    <i className="fas fa-comments"></i>
-                    <span className="chat-tooltip">Chat với chúng tôi</span>
-                </button>
-                <div className="chatbot-content">
-                    <div className="chat-header">
-                        <h4><i className="fas fa-robot"></i> Hỗ trợ trực tuyến</h4>
-                        <button onClick={() => window.toggleChatbot()}>
-                            <i className="fas fa-times"></i>
-                        </button>
-                    </div>
-                    <div className="chat-messages">
-                        <div className="message bot-message">
-                            <i className="fas fa-robot"></i>
-                            <p>Xin chào! Tôi có thể giúp gì cho bạn?</p>
-                        </div>
-                    </div>
-                    <div className="chat-input">
-                        <input type="text" placeholder="Nhập tin nhắn..." id="chatInput" />
-                        <button onClick={() => window.sendMessage()}>
-                            <i className="fas fa-paper-plane"></i>
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            {/* Back to top button */}
-            <button className="back-to-top" onClick={() => window.scrollToTop()}>
-                <i className="fas fa-angle-up"></i>
-            </button>
+            <OrderTypeModal />
         </>
     );
 };

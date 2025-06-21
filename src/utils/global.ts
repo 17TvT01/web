@@ -8,18 +8,37 @@ declare global {
         toggleChatbot: () => void;
         sendMessage: () => void;
         scrollToTop: () => void;
-        showPaymentForm: () => void;
-        
-        // Form Handlers
+        togglePasswordVisibility: (inputId: string) => void;
         handleLogin: (e: FormEvent<HTMLFormElement>) => Promise<void>;
         handleRegister: (e: FormEvent<HTMLFormElement>) => Promise<void>;
     }
 }
 
 // UI Functions
-window.toggleChatbot = () => uiService.toggleChatbot();
-window.scrollToTop = () => window.scrollTo({ top: 0, behavior: 'smooth' });
-window.showPaymentForm = () => uiService.showForm('payment');
+window.toggleChatbot = () => {
+    const chatbot = document.querySelector('.chatbot-content');
+    if (chatbot instanceof HTMLElement) {
+        const isVisible = chatbot.style.display === 'block';
+        chatbot.style.display = isVisible ? 'none' : 'block';
+    }
+};
+
+window.scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+};
+
+window.togglePasswordVisibility = (inputId: string) => {
+    const input = document.getElementById(inputId) as HTMLInputElement;
+    const button = input?.nextElementSibling as HTMLButtonElement;
+    if (input && button) {
+        const type = input.type === 'password' ? 'text' : 'password';
+        input.type = type;
+        const icon = button.querySelector('i');
+        if (icon) {
+            icon.className = `fas fa-${type === 'password' ? 'eye' : 'eye-slash'}`;
+        }
+    }
+};
 
 // Chat Functions
 window.sendMessage = () => {
@@ -62,8 +81,8 @@ window.handleLogin = async (e: FormEvent<HTMLFormElement>) => {
 
     try {
         const form = e.currentTarget;
-        const email = form.querySelector<HTMLInputElement>('input[type="text"]')?.value;
-        const password = form.querySelector<HTMLInputElement>('input[type="password"]')?.value;
+        const email = (form.querySelector('#login-email') as HTMLInputElement)?.value;
+        const password = (form.querySelector('#login-password') as HTMLInputElement)?.value;
 
         console.log('Login credentials:', { email }); // Debug
 
@@ -89,10 +108,10 @@ window.handleRegister = async (e: FormEvent<HTMLFormElement>) => {
 
     try {
         const form = e.currentTarget;
-        const name = form.querySelector<HTMLInputElement>('input[placeholder="Họ và tên"]')?.value;
-        const email = form.querySelector<HTMLInputElement>('input[type="email"]')?.value;
-        const password = form.querySelectorAll<HTMLInputElement>('input[type="password"]')[0]?.value;
-        const confirmPassword = form.querySelectorAll<HTMLInputElement>('input[type="password"]')[1]?.value;
+        const name = (form.querySelector('#register-name') as HTMLInputElement)?.value;
+        const email = (form.querySelector('#register-email') as HTMLInputElement)?.value;
+        const password = (form.querySelector('#register-password') as HTMLInputElement)?.value;
+        const confirmPassword = (form.querySelector('#register-confirm') as HTMLInputElement)?.value;
 
         console.log('Register data:', { name, email }); // Debug
 

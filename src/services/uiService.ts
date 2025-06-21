@@ -6,7 +6,6 @@ class UIService {
     private overlay: HTMLElement | null = null;
     private forms: { [key in FormType]?: HTMLElement } = {};
     private dropdowns: { [key in DropdownType]?: HTMLElement } = {};
-    private chatbot: HTMLElement | null = null;
 
     initialize() {
         if (this.initialized) {
@@ -16,50 +15,46 @@ class UIService {
 
         console.log('Initializing UIService...'); // Debug
 
-        // Initialize overlay
-        this.overlay = document.querySelector('.dropdown-overlay');
+        try {
+            // Initialize overlay
+            this.overlay = document.querySelector('.dropdown-overlay');
 
-        // Initialize chatbot
-        this.chatbot = document.querySelector('.chatbot-content');
+            // Initialize forms
+            const formTypes: FormType[] = ['login', 'register', 'payment', 'profile', 'orders', 'orderType', 'paymentOptions'];
+            formTypes.forEach(type => {
+                const form = document.querySelector(`.${type}-form`);
+                if (form instanceof HTMLElement) {
+                    this.forms[type] = form;
+                    console.log(`Form '${type}' initialized`); // Debug
 
-        // Initialize forms
-        const formTypes: FormType[] = ['login', 'register', 'payment', 'profile', 'orders', 'orderType', 'paymentOptions'];
-        formTypes.forEach(type => {
-            const form = document.querySelector(`.${type}-form`);
-            if (form instanceof HTMLElement) {
-                this.forms[type] = form;
-                console.log(`Form '${type}' initialized`); // Debug
-            } else {
-                console.warn(`Form '${type}' not found`);
-            }
-        });
-
-        // Initialize dropdowns
-        const dropdownTypes: DropdownType[] = ['cart', 'notification'];
-        dropdownTypes.forEach(type => {
-            const dropdown = document.querySelector(`.${type}-dropdown`);
-            if (dropdown instanceof HTMLElement) {
-                this.dropdowns[type] = dropdown;
-                console.log(`Dropdown '${type}' initialized`); // Debug
-            } else {
-                console.warn(`Dropdown '${type}' not found`);
-            }
-        });
-
-        // Add click handlers for close buttons
-        document.querySelectorAll('.close-form, .modal-close').forEach(btn => {
-            if (btn instanceof HTMLElement) {
-                const form = btn.closest('.form-overlay');
-                if (form) {
-                    btn.addEventListener('click', () => {
-                        this.hideAllOverlays();
-                    });
+                    // Add close button handlers
+                    const closeBtn = form.querySelector('.close-form');
+                    if (closeBtn) {
+                        closeBtn.addEventListener('click', () => this.hideForm(type));
+                    }
+                } else {
+                    console.warn(`Form '${type}' not found`);
                 }
-            }
-        });
+            });
 
-        this.initialized = true;
-        console.log('UIService initialization complete');
+            // Initialize dropdowns
+            const dropdownTypes: DropdownType[] = ['cart', 'notification'];
+            dropdownTypes.forEach(type => {
+                const dropdown = document.querySelector(`.${type}-dropdown`);
+                if (dropdown instanceof HTMLElement) {
+                    this.dropdowns[type] = dropdown;
+                    console.log(`Dropdown '${type}' initialized`); // Debug
+                } else {
+                    console.warn(`Dropdown '${type}' not found`);
+                }
+            });
+
+            this.initialized = true;
+            console.log('UIService initialization complete');
+
+        } catch (error) {
+            console.error('Error initializing UIService:', error);
+        }
     }
 
     showForm(type: FormType) {
@@ -68,7 +63,7 @@ class UIService {
         // Hide other forms and dropdowns first
         this.hideAllOverlays();
 
-        const form = this.forms[type];
+        const form = document.querySelector(`.${type}-form`);
         if (!form) {
             console.warn(`Form '${type}' not found`);
             return;
@@ -84,7 +79,7 @@ class UIService {
     hideForm(type: FormType) {
         console.log(`Hiding form: ${type}`); // Debug
 
-        const form = this.forms[type];
+        const form = document.querySelector(`.${type}-form`);
         if (!form) {
             console.warn(`Form '${type}' not found`);
             return;
@@ -111,40 +106,17 @@ class UIService {
         this.overlay?.classList.toggle('active');
     }
 
-    toggleChatbot() {
-        console.log('Toggling chatbot'); // Debug
-
-        if (!this.chatbot) {
-            console.warn('Chatbot element not found');
-            return;
-        }
-
-        const isVisible = this.chatbot.style.display === 'block';
-        this.chatbot.style.display = isVisible ? 'none' : 'block';
-
-        // Hide overlay when closing chatbot
-        if (isVisible) {
-            this.overlay?.classList.remove('active');
-        }
-    }
-
     hideAllOverlays() {
         console.log('Hiding all overlays'); // Debug
 
         // Hide all forms
-        Object.values(this.forms).forEach(form => {
-            form?.classList.remove('active');
-        });
+        const forms = document.querySelectorAll('.form-overlay');
+        forms.forEach(form => form.classList.remove('active'));
 
         // Hide all dropdowns
         Object.values(this.dropdowns).forEach(dropdown => {
             dropdown?.classList.remove('active');
         });
-
-        // Hide chatbot
-        if (this.chatbot) {
-            this.chatbot.style.display = 'none';
-        }
 
         // Hide overlay
         this.overlay?.classList.remove('active');

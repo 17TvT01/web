@@ -1,96 +1,114 @@
+export type MainCategory = 'all' | 'cake' | 'drink' | 'food';
+
+export interface CakeFilters {
+    occasion?: string[];   // Dịp sử dụng
+    flavor?: string[];     // Hương vị
+    ingredient?: string[]; // Thành phần chính
+    size?: string[];      // Kích thước
+}
+
+export interface FoodFilters {
+    type?: string[];      // Loại đồ ăn
+}
+
+export interface DrinkFilters {
+    type?: string[];      // Loại nước
+}
+
+// Filter Options Constants
+export const CAKE_FILTERS = {
+    occasion: [
+        'Sinh nhật',
+        'Đám cưới / hỏi',
+        'Lễ tình nhân / Kỷ niệm',
+        'Lễ hội',
+        'Tặng đối tác / doanh nghiệp',
+        'Khác'
+    ],
+    flavor: [
+        'Kem bơ',
+        'Kem tươi',
+        'Mousse',
+        'Tiramisu',
+        'Bánh kem lạnh'
+    ],
+    ingredient: [
+        'Trái cây tươi',
+        'Socola',
+        'Phô mai / cream cheese',
+        'Trà xanh / matcha',
+        'Các loại hạt'
+    ],
+    size: [
+        'Mini (1 người)',
+        'Nhỏ – Trung bình (2-4 người)',
+        'Lớn (trên 6 người)',
+        'Nhiều tầng',
+        'Hình dạng đặc biệt'
+    ]
+};
+
+export const FOOD_FILTERS = {
+    type: [
+        'Mì',
+        'Bánh',
+        'Pizza',
+        'Snack',
+        'Đồ chiên'
+    ]
+};
+
+export const DRINK_FILTERS = {
+    type: [
+        'Nước ngọt',
+        'Nước ép trái cây',
+        'Trà sữa',
+        'Cà phê',
+        'Sinh tố'
+    ]
+};
+
+// Product Interface
 export interface Product {
     id: number;
     name: string;
     price: number;
     image: string;
-    category: string;
+    category: MainCategory;
+    subCategory?: string;
+    filters?: CakeFilters | FoodFilters | DrinkFilters;
     description?: string;
     onSale?: boolean;
     salePrice?: number;
     isNew?: boolean;
     inStock: boolean;
     rating?: number;
-    reviews?: Review[];
 }
 
 export interface CartItem extends Product {
     quantity: number;
 }
 
-export interface Review {
-    id: number;
-    userId: number;
-    rating: number;
-    comment: string;
-    date: string;
-}
-
-export interface User {
-    id: number;
-    name: string;
-    email: string;
-    avatar?: string;
-    role: 'user' | 'admin';
-}
-
-export interface Order {
-    id: number;
-    userId: number;
-    items: CartItem[];
-    total: number;
-    status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
-    paymentMethod: 'cash' | 'card' | 'transfer';
-    shippingAddress: Address;
-    createdAt: string;
-    updatedAt: string;
-}
-
-export interface Address {
-    fullName: string;
-    phone: string;
-    street: string;
-    city: string;
-    state: string;
-    zipCode: string;
-}
-
-export interface NotificationMessage {
-    id: number;
-    type: 'info' | 'success' | 'warning' | 'error';
-    message: string;
-    read: boolean;
-    createdAt: string;
-}
-
+// Filter Types
 export interface CategoryFilter {
     id: string;
-    name: string;
-    count: number;
+    label: string;
+    count?: number;
 }
 
-export interface PriceFilter {
-    min: number;
-    max: number;
+export interface FilterState {
+    [key: string]: string[];
 }
 
-export interface ProductFilters {
-    category?: string;
-    price?: PriceFilter;
-    inStock?: boolean;
-    onSale?: boolean;
-    isNew?: boolean;
-    rating?: number;
+export interface SortOption {
+    id: string;
+    label: string;
 }
 
-export interface APIResponse<T> {
-    data: T;
-    message?: string;
-    error?: string;
-}
-
-export interface PaginatedResponse<T> extends APIResponse<T> {
-    page: number;
-    limit: number;
-    total: number;
-    hasMore: boolean;
-}
+export const SORT_OPTIONS: SortOption[] = [
+    { id: 'price-asc', label: 'Giá tăng dần' },
+    { id: 'price-desc', label: 'Giá giảm dần' },
+    { id: 'name-asc', label: 'Tên A-Z' },
+    { id: 'name-desc', label: 'Tên Z-A' },
+    { id: 'newest', label: 'Mới nhất' }
+];

@@ -1,10 +1,15 @@
 import { useEffect, useState } from 'react';
 import { uiService } from '../../services/uiService';
 import { cartService } from '../../services/cartService';
-import { notificationService } from '../../services/notificationService';
+import '../../assets/css/components/header.css';
 
-export const Header = () => {
+interface Props {
+    onSearch?: (query: string) => void;
+}
+
+export const Header = ({ onSearch }: Props) => {
     const [cartCount, setCartCount] = useState(0);
+    const [searchValue, setSearchValue] = useState('');
 
     useEffect(() => {
         // Initial cart count
@@ -23,15 +28,33 @@ export const Header = () => {
     }, []);
 
     const handleShowLoginForm = () => {
-        console.log('Showing login form...'); // Debug
         uiService.hideAllOverlays();
-        uiService.showForm('login');
+        // Add a small delay to ensure overlays are cleared
+        setTimeout(() => {
+            const loginForm = document.querySelector('.login-form');
+            if (loginForm) {
+                loginForm.classList.add('active');
+                const overlay = document.querySelector('.dropdown-overlay');
+                if (overlay) {
+                    overlay.classList.add('active');
+                }
+            }
+        }, 100);
     };
 
     const handleShowRegisterForm = () => {
-        console.log('Showing register form...'); // Debug
         uiService.hideAllOverlays();
-        uiService.showForm('register');
+        // Add a small delay to ensure overlays are cleared
+        setTimeout(() => {
+            const registerForm = document.querySelector('.register-form');
+            if (registerForm) {
+                registerForm.classList.add('active');
+                const overlay = document.querySelector('.dropdown-overlay');
+                if (overlay) {
+                    overlay.classList.add('active');
+                }
+            }
+        }, 100);
     };
 
     const handleCartClick = () => {
@@ -40,6 +63,12 @@ export const Header = () => {
 
     const handleNotificationClick = () => {
         uiService.toggleDropdown('notification');
+    };
+
+    const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const value = e.target.value;
+        setSearchValue(value);
+        onSearch?.(value);
     };
 
     return (
@@ -54,6 +83,8 @@ export const Header = () => {
                         type="text" 
                         placeholder="Tìm kiếm sản phẩm..."
                         aria-label="Search"
+                        value={searchValue}
+                        onChange={handleSearchChange}
                     />
                     <button className="search-btn">
                         <i className="fas fa-search"></i>
@@ -85,6 +116,7 @@ export const Header = () => {
                         className="auth-btn login-btn"
                         onClick={handleShowLoginForm}
                     >
+                        <i className="fas fa-sign-in-alt"></i>
                         Đăng nhập
                     </button>
                     <button 
@@ -92,6 +124,7 @@ export const Header = () => {
                         className="auth-btn register-btn"
                         onClick={handleShowRegisterForm}
                     >
+                        <i className="fas fa-user-plus"></i>
                         Đăng ký
                     </button>
                 </div>

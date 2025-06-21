@@ -1,0 +1,151 @@
+.product-navigation {
+    background: white;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    margin-bottom: 2rem;
+    position: sticky;
+    top: 70px;
+    z-index: 10;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.nav-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 var(--spacing-lg);
+}
+
+.category-list {
+    display: flex;
+    gap: 1rem;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    padding: 0.5rem 0;
+}
+
+.category-list::-webkit-scrollbar {
+    display: none;
+}
+
+.category-btn {
+    position: relative;
+    padding: 0.8rem 1.5rem;
+    background: transparent;
+    border: none;
+    border-radius: var(--border-radius);
+    color: var(--text-color);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.category-btn i {
+    font-size: 1.1rem;
+    color: inherit;
+}
+
+.category-btn:hover {
+    color: var(--primary-color);
+    background: rgba(255, 107, 107, 0.05);
+}
+
+.category-btn.active {
+    color: var(--primary-color);
+    background: rgba(255, 107, 107, 0.1);
+}
+
+.active-indicator {
+    position: absolute;
+    bottom: -0.5rem;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--primary-color);
+}
+
+/* Sort Section */
+.sort-section {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 0;
+    border-top: 1px solid var(--border-color);
+}
+
+.sort-label {
+    font-size: 0.9rem;
+    color: #666;
+}
+
+.sort-options {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.sort-btn {
+    padding: 0.5rem 1rem;
+    background: transparent;
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    color: var(--text-color);
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.sort-btn:hover {
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+}
+
+.sort-btn.active {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+    color: white;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .nav-container {
+        padding: 0 var(--spacing-md);
+    }
+
+    .category-btn {
+        padding: 0.6rem 1rem;
+        font-size: 0.9rem;
+    }
+
+    .sort-section {
+        flex-wrap: wrap;
+    }
+
+    .sort-options {
+        flex-wrap: wrap;
+    }
+
+    .sort-btn {
+        padding: 0.4rem 0.8rem;
+        font-size: 0.8rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .category-btn {
+        padding: 0.5rem 0.8rem;
+        font-size: 0.85rem;
+    }
+
+    .category-btn i {
+        font-size: 1rem;
+    }
+
+    .sort-section {
+        padding: 0.8rem 0;
+    }
+}
