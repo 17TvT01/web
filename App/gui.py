@@ -1,13 +1,21 @@
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 from PIL import Image, ImageTk
+import shutil
+import os
+from datetime import datetime
 from product_manager import ProductManager
 
 class StoreGUI:
     def __init__(self, root):
         self.root = root
-        self.root.title("Store Management System")
+        self.root.title("Hệ Thống Quản Lý Cửa Hàng")
         self.root.geometry("1200x700")
+        
+        # Create images directory if not exists
+        self.images_dir = "images"
+        if not os.path.exists(self.images_dir):
+            os.makedirs(self.images_dir)
         
         self.product_manager = ProductManager()
         
@@ -28,10 +36,15 @@ class StoreGUI:
         self.load_products()
 
     def _setup_left_panel(self):
-        # Bộ lọc danh mục
-        ttk.Label(self.left_panel, text="Lọc theo danh mục", font=('Helvetica', 12, 'bold')).pack(pady=10)
+        # Category filter
+        ttk.Label(self.left_panel, text="Lọc Theo Danh Mục", font=('Helvetica', 12, 'bold')).pack(pady=10)
         self.category_var = tk.StringVar(value="all")
-        categories = [("Tất cả", "all"), ("Bánh ngọt", "cake"), ("Đồ ăn", "food"), ("Đồ uống", "drink")]
+        categories = [
+            ("Tất cả", "all"), 
+            ("Bánh kem", "cake"), 
+            ("Đồ ăn", "food"), 
+            ("Đồ uống", "drink")
+        ]
         
         for text, value in categories:
             ttk.Radiobutton(
@@ -42,89 +55,126 @@ class StoreGUI:
                 command=self.load_products
             ).pack(pady=2)
 
-        # Tìm kiếm
-        ttk.Label(self.left_panel, text="Tìm kiếm", font=('Helvetica', 12, 'bold')).pack(pady=(20,5))
+        # Search
+        ttk.Label(self.left_panel, text="Tìm Kiếm", font=('Helvetica', 12, 'bold')).pack(pady=(20,5))
         self.search_var = tk.StringVar()
         self.search_var.trace('w', lambda *args: self.load_products())
         ttk.Entry(self.left_panel, textvariable=self.search_var).pack(padx=5, fill=tk.X)
 
-        # Thêm sản phẩm mới
-        ttk.Label(self.left_panel, text="Thêm sản phẩm mới", font=('Helvetica', 12, 'bold')).pack(pady=(20,10))
+        # Add product form
+        ttk.Label(self.left_panel, text="Thêm Sản Phẩm Mới", font=('Helvetica', 12, 'bold')).pack(pady=(20,10))
         
-        fields = [
-            ("Tên:", "name"),
-            ("Giá:", "price"),
-            ("Số lượng:", "quantity"),
+        # Create StringVar for each field
+        self.product_fields = {
+            'name': tk.StringVar(),
+            'price': tk.StringVar(),
+            'description': tk.StringVar(),
+        }
+        self.selected_image_path = None
+        self.image_preview_label = None
+        
+        # Add form fields
+        field_labels = [
+            ("Tên sản phẩm:", "name"),
+            ("Giá (VNĐ):", "price"),
             ("Mô tả:", "description"),
-            ("Đường dẫn ảnh:", "image_url")
         ]
         
-        self.new_product_vars = {}
-        for label, key in fields:
+        for label, key in field_labels:
             ttk.Label(self.left_panel, text=label).pack(anchor=tk.W, padx=5)
-            self.new_product_vars[key] = tk.StringVar()
-            if key == "image_url":
-                self.image_path_label = ttk.Label(self.left_panel, textvariable=self.new_product_vars['image_url'])
-                self.image_path_label.pack(anchor=tk.W, padx=5)
-                upload_button = ttk.Button(self.left_panel, text="Tải ảnh lên", command=self.select_image_file)
-                upload_button.pack(padx=5, fill=tk.X, pady=(0,10))
-            else:
-                widget = ttk.Entry(self.left_panel, textvariable=self.new_product_vars[key])
-                widget.pack(padx=5, fill=tk.X, pady=(0,10))
+            ttk.Entry(
+                self.left_panel,
+                textvariable=self.product_fields[key]
+            ).pack(padx=5, fill=tk.X, pady=(0,10))
 
-        # Chọn danh mục cho sản phẩm mới
+        # Image upload
+        ttk.Label(self.left_panel, text="Hình ảnh:").pack(anchor=tk.W, padx=5)
+        ttk.Button(
+            self.left_panel,
+            text="Chọn ảnh",
+            command=self.choose_image
+        ).pack(padx=5, fill=tk.X, pady=(0,5))
+        
+        # Image preview
+        self.image_preview_label = ttk.Label(self.left_panel)
+        self.image_preview_label.pack(pady=(0,10))
+
+        # Category selection
         ttk.Label(self.left_panel, text="Danh mục:").pack(anchor=tk.W, padx=5)
-        self.new_product_category_var = tk.StringVar()
-        self.new_product_category = ttk.Combobox(
+        self.new_category_var = tk.StringVar()
+        category_combo = ttk.Combobox(
             self.left_panel, 
-            textvariable=self.new_product_category_var,
-            values=["cake", "food", "drink"],
+            textvariable=self.new_category_var,
+            values=["Bánh kem", "Đồ ăn", "Đồ uống"],
             state="readonly"
         )
-        self.new_product_category.pack(padx=5, fill=tk.X, pady=(0,10))
+        category_combo.pack(padx=5, fill=tk.X, pady=(0,10))
         
-        # Nút thêm sản phẩm
+        # Buttons
         ttk.Button(
             self.left_panel, 
-            text="Thêm sản phẩm", 
+            text="Thêm Sản Phẩm", 
             command=self.add_product
         ).pack(pady=10, padx=5, fill=tk.X)
 
+        ttk.Button(
+            self.left_panel,
+            text="Xóa Form",
+            command=self.clear_form
+        ).pack(pady=(0,10), padx=5, fill=tk.X)
+
+    def choose_image(self):
+        file_types = [
+            ('Image files', '*.png *.jpg *.jpeg *.gif *.bmp'),
+            ('All files', '*.*')
+        ]
+        filename = filedialog.askopenfilename(
+            title="Chọn hình ảnh",
+            filetypes=file_types
+        )
+        
+        if filename:
+            self.selected_image_path = filename
+            # Show image preview
+            try:
+                image = Image.open(filename)
+                image.thumbnail((100, 100))  # Resize for preview
+                photo = ImageTk.PhotoImage(image)
+                self.image_preview_label.configure(image=photo)
+                self.image_preview_label.image = photo  # Keep a reference
+            except Exception as e:
+                messagebox.showerror("Lỗi", f"Không thể tải ảnh: {str(e)}")
+
     def _setup_right_panel(self):
-        # Danh sách sản phẩm
+        # Products list
         self.tree = ttk.Treeview(
             self.right_panel,
-            columns=("ID", "Tên", "Giá", "Số lượng", "Danh mục", "Mô tả", "Ảnh"),
+            columns=("ID", "Tên", "Giá", "Danh mục", "Mô tả"),
             show="headings"
         )
         
-        # Định nghĩa tiêu đề cột
+        # Define headings
         self.tree.heading("ID", text="ID")
-        self.tree.heading("Tên", text="Tên")
-        self.tree.heading("Giá", text="Giá")
-        self.tree.heading("Số lượng", text="Số lượng")
+        self.tree.heading("Tên", text="Tên sản phẩm")
+        self.tree.heading("Giá", text="Giá (VNĐ)")
         self.tree.heading("Danh mục", text="Danh mục")
         self.tree.heading("Mô tả", text="Mô tả")
-        self.tree.heading("Ảnh", text="Ảnh")
         
-        # Định nghĩa cột
+        # Define columns
         self.tree.column("ID", width=50)
-        self.tree.column("Tên", width=150)
-        self.tree.column("Giá", width=80)
-        self.tree.column("Số lượng", width=80)
+        self.tree.column("Tên", width=200)
+        self.tree.column("Giá", width=100)
         self.tree.column("Danh mục", width=100)
-        self.tree.column("Mô tả", width=250)
-        self.tree.column("Ảnh", width=100)
-        self.tree.image_references = {} # To store PhotoImage references
+        self.tree.column("Mô tả", width=300)
         
         # Scrollbar
         scrollbar = ttk.Scrollbar(self.right_panel, orient=tk.VERTICAL, command=self.tree.yview)
         self.tree.configure(yscrollcommand=scrollbar.set)
         
-        # Nút xóa
+        # Delete button
         self.delete_btn = ttk.Button(
             self.right_panel,
-            text="Xóa đã chọn",
+            text="Xóa Sản Phẩm",
             command=self.delete_product
         )
         
@@ -132,6 +182,91 @@ class StoreGUI:
         self.tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         self.delete_btn.pack(side=tk.BOTTOM, pady=10)
+
+    def save_uploaded_image(self, source_path):
+        if not source_path:
+            return None
+            
+        try:
+            # Create a unique filename using timestamp
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            file_ext = os.path.splitext(source_path)[1]
+            filename = f"product_{timestamp}{file_ext}"
+            destination = os.path.join(self.images_dir, filename)
+            
+            # Copy the file
+            shutil.copy2(source_path, destination)
+            return destination
+            
+        except Exception as e:
+            messagebox.showerror("Lỗi", f"Không thể lưu ảnh: {str(e)}")
+            return None
+
+    def add_product(self):
+        try:
+            # Get values from form
+            name = self.product_fields['name'].get().strip()
+            price_str = self.product_fields['price'].get().strip()
+            description = self.product_fields['description'].get().strip()
+            category_display = self.new_category_var.get()
+            
+            # Convert display category to database category
+            category_map = {
+                "Bánh kem": "cake",
+                "Đồ ăn": "food",
+                "Đồ uống": "drink"
+            }
+            category = category_map.get(category_display)
+            
+            # Validate inputs
+            if not name:
+                messagebox.showerror("Lỗi", "Vui lòng nhập tên sản phẩm!")
+                return
+                
+            try:
+                price = float(price_str)
+                if price < 0:
+                    raise ValueError("Giá phải là số dương")
+            except ValueError:
+                messagebox.showerror("Lỗi", "Vui lòng nhập giá hợp lệ!")
+                return
+            
+            if not category:
+                messagebox.showerror("Lỗi", "Vui lòng chọn danh mục!")
+                return
+            
+            # Save image if selected
+            image_path = None
+            if self.selected_image_path:
+                image_path = self.save_uploaded_image(self.selected_image_path)
+            
+            # Add product to database
+            product_id = self.product_manager.add_product(
+                name=name,
+                price=price,
+                category=category,
+                description=description if description else None,
+                image_url=image_path
+            )
+            
+            if product_id:
+                messagebox.showinfo("Thành công", "Đã thêm sản phẩm!")
+                self.clear_form()
+                self.load_products()
+            else:
+                messagebox.showerror("Lỗi", "Không thể thêm sản phẩm!")
+                
+        except Exception as e:
+            messagebox.showerror("Lỗi", f"Đã xảy ra lỗi: {str(e)}")
+
+    def clear_form(self):
+        # Clear all form fields
+        for var in self.product_fields.values():
+            var.set("")
+        self.new_category_var.set("")
+        self.selected_image_path = None
+        # Clear image preview
+        self.image_preview_label.configure(image='')
 
     def load_products(self):
         # Clear current items
@@ -149,109 +284,40 @@ class StoreGUI:
         else:
             products = self.product_manager.get_all_products()
         
+        # Category display mapping
+        category_display = {
+            "cake": "Bánh kem",
+            "food": "Đồ ăn",
+            "drink": "Đồ uống"
+        }
+        
         # Insert products into tree
         for product in products:
-            item_id = self.tree.insert(
-                    "",
-                    tk.END,
-                    values=(
-                        product['id'],
-                        product['name'],
-                        f"{product['price']:.2f} VNĐ",
-                        product['quantity'],
-                        product['category'],
-                        product['description'] or "",
-                        ""
-                    )
+            self.tree.insert(
+                "",
+                tk.END,
+                values=(
+                    product['id'],
+                    product['name'],
+                    f"{int(product['price']):,d} VNĐ",
+                    category_display.get(product['category'], product['category']),
+                    product['description'] or ""
+                )
             )
-            if product['image_url']:
-                self._display_image_in_treeview(product['image_url'], item_id)
-
-    def add_product(self):
-        print("DEBUG: add_product method in GUI called.")
-        try:
-            # Get values from form
-            name = self.new_product_vars['name'].get()
-            price = float(self.new_product_vars['price'].get())
-            quantity = int(self.new_product_vars['quantity'].get())
-            description = self.new_product_vars['description'].get()
-            image_url = self.new_product_vars['image_url'].get()
-            category = self.new_product_category_var.get()
-
-
-            
-
-            if not all([name, price, quantity, category]):
-                messagebox.showerror("Lỗi", "Tên, giá, số lượng và danh mục là bắt buộc!")
-                return
-            
-            # Add product
-            product_id = self.product_manager.add_product(
-                name, price, quantity, category, description, image_url
-            )
-            
-            if product_id:
-                messagebox.showinfo("Thành công", "Sản phẩm đã được thêm thành công!")
-                # Xóa form
-                for key, var in self.new_product_vars.items():
-                    if key not in ['image_url', 'quantity']:
-                        var.set('')
-                self.new_product_vars['quantity'].set('')
-                self.new_product_vars['image_url'].set("")
-                self.image_path_label.config(text="Chưa chọn ảnh")
-                self.new_product_category.set('')
-                # Reload products
-                self.load_products()
-            else:
-                messagebox.showerror("Lỗi", "Không thể thêm sản phẩm!")
-        except Exception as e:
-            messagebox.showerror("Lỗi", f"Đã xảy ra lỗi: {e}")
-
-    def _display_image_in_treeview(self, image_path, item_id):
-        if image_path:
-            try:
-                img = Image.open(image_path)
-                img = img.resize((50, 50), Image.LANCZOS)
-                photo = ImageTk.PhotoImage(img)
-                self.tree.item(item_id, image=photo)
-                self.tree.image_references[item_id] = photo  # Store reference
-            except FileNotFoundError:
-                print(f"Image file not found: {image_path}")
-            except Exception as e:
-                print(f"Error loading image {image_path}: {e}")
-
-    def select_image_file(self):
-        file_path = filedialog.askopenfilename(
-            title="Chọn ảnh sản phẩm",
-            filetypes=[("Image files", "*.png *.jpg *.jpeg *.gif *.bmp")]
-        )
-        if file_path:
-            self.new_product_vars['image_url'].set(file_path)
-            print(f"DEBUG: Image URL set to: {file_path}")
-            self.image_path_label.config(text=file_path)
-
-    def select_image_file(self):
-        file_path = filedialog.askopenfilename(
-            title="Chọn tệp ảnh",
-            filetypes=[("Tệp ảnh", "*.png *.jpg *.jpeg *.gif *.bmp")]
-        )
-        if file_path:
-            self.new_product_vars['image_url'] = file_path
-            self.image_path_label.config(text=file_path)
 
     def delete_product(self):
         selected = self.tree.selection()
         if not selected:
-            messagebox.showwarning("Warning", "Please select a product to delete!")
+            messagebox.showwarning("Cảnh báo", "Vui lòng chọn sản phẩm để xóa!")
             return
             
-        if messagebox.askyesno("Confirm", "Are you sure you want to delete this product?"):
+        if messagebox.askyesno("Xác nhận", "Bạn có chắc muốn xóa sản phẩm này?"):
             for item in selected:
                 product_id = self.tree.item(item)['values'][0]
                 if self.product_manager.delete_product(product_id):
                     self.tree.delete(item)
                 else:
-                    messagebox.showerror("Error", f"Failed to delete product {product_id}")
+                    messagebox.showerror("Lỗi", f"Không thể xóa sản phẩm {product_id}")
 
 def main():
     root = tk.Tk()

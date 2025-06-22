@@ -5,39 +5,61 @@ class ProductManager:
     def __init__(self):
         self.db = Database()
 
-    def add_product(self, name, price, quantity, category, description=None, image_url=None, attributes=None):
-
+    def add_product(self, name, price, category, description=None, image_url=None, attributes=None):
         try:
+            # Validate inputs
+            if not isinstance(name, str) or not name.strip():
+                raise ValueError("Invalid product name")
+            
+            if not isinstance(price, (int, float)) or price < 0:
+                raise ValueError("Invalid price")
+            
+            if category not in ['cake', 'food', 'drink']:
+                raise ValueError("Invalid category")
+
             # Insert product
-            sql = '''INSERT INTO products (name, price, quantity, category, description, image_url) 
-                    VALUES (%s, %s, %s, %s, %s, %s)'''
-            values = (name, price, quantity, category, description, image_url)
+            sql = '''INSERT INTO products (name, price, category, description, image_url) 
+                    VALUES (%s, %s, %s, %s, %s)'''
+            values = (name, price, category, description, image_url)
             
             self.db.cursor.execute(sql, values)
             product_id = self.db.cursor.lastrowid
             
             # Insert attributes if provided
-            if attributes and product_id:
+            if attributes and isinstance(attributes, dict) and product_id:
                 attr_sql = '''INSERT INTO product_attributes 
                             (product_id, attribute_type, attribute_value) 
                             VALUES (%s, %s, %s)'''
-                attr_values = [(product_id, attr_type, attr_value) 
-                             for attr_type, values in attributes.items()
-                             for attr_value in values]
                 
-                self.db.cursor.executemany(attr_sql, attr_values)
+                attr_values = []
+                for attr_type, values in attributes.items():
+                    # Ensure values is a list
+                    if isinstance(values, str):
+                        values = [values]
+                    for value in values:
+                        if value and isinstance(value, str):
+                            attr_values.append((product_id, attr_type, value.strip()))
+                
+                if attr_values:
+                    self.db.cursor.executemany(attr_sql, attr_values)
             
             self.db.conn.commit()
+            print(f"Product added successfully with ID: {product_id}")  # Debug log
             return product_id
+
         except Error as e:
-            print(f"Error adding product: {e}")
+            print(f"Database error in add_product: {e}")  # Debug log
+            self.db.conn.rollback()
+            return None
+        except Exception as e:
+            print(f"Error in add_product: {e}")  # Debug log
             self.db.conn.rollback()
             return None
 
     def get_product(self, product_id):
         try:
             # Get product details
-            sql = '''SELECT p.id, p.name, p.price, p.quantity, p.category, p.description, p.image_url, p.is_available, p.created_at, GROUP_CONCAT(
+            sql = '''SELECT p.*, GROUP_CONCAT(
                         CONCAT(pa.attribute_type, ':', pa.attribute_value)
                         SEPARATOR '|'
                     ) as attributes
@@ -68,13 +90,13 @@ class ProductManager:
             
             return product
         except Error as e:
-            print(f"Error getting product: {e}")
+            print(f"Database error in get_product: {e}")  # Debug log
             return None
 
     def get_all_products(self, category=None):
         try:
             # Base query
-            sql = '''SELECT p.id, p.name, p.price, p.quantity, p.category, p.description, p.image_url, p.is_available, p.created_at, GROUP_CONCAT(
+            sql = '''SELECT p.*, GROUP_CONCAT(
                         CONCAT(pa.attribute_type, ':', pa.attribute_value)
                         SEPARATOR '|'
                     ) as attributes
@@ -116,7 +138,7 @@ class ProductManager:
                 
             return products
         except Error as e:
-            print(f"Error getting products: {e}")
+            print(f"Database error in get_all_products: {e}")  # Debug log
             return []
 
     def delete_product(self, product_id):
@@ -124,18 +146,15 @@ class ProductManager:
             sql = 'DELETE FROM products WHERE id = %s'
             self.db.cursor.execute(sql, (product_id,))
             self.db.conn.commit()
-            if self.db.cursor.rowcount > 0:
-                self.db.reset_auto_increment('products')
-                return True
-            return False
+            return self.db.cursor.rowcount > 0
         except Error as e:
-            print(f"Error deleting product: {e}")
+            print(f"Database error in delete_product: {e}")  # Debug log
             self.db.conn.rollback()
             return False
 
     def search_products(self, keyword):
         try:
-            sql = '''SELECT p.id, p.name, p.price, p.quantity, p.category, p.description, p.image_url, p.is_available, p.created_at, GROUP_CONCAT(
+            sql = '''SELECT p.*, GROUP_CONCAT(
                         CONCAT(pa.attribute_type, ':', pa.attribute_value)
                         SEPARATOR '|'
                     ) as attributes
@@ -169,7 +188,7 @@ class ProductManager:
                 
             return products
         except Error as e:
-            print(f"Error searching products: {e}")
+            print(f"Database error in search_products: {e}")  # Debug log
             return []
 
     def close(self):
