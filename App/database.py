@@ -3,30 +3,71 @@ from mysql.connector import Error
 
 class Database:
     def __init__(self):
+        self.conn = None
+        self.cursor = None
+        self.connect()
+        
+    def connect(self):
         try:
-            self.conn = mysql.connector.connect(
-                host='localhost',
-                user='root',
-                password='mysql',
-                database='web_store'
-            )
+            # First try without password (XAMPP default)
+            try:
+                self.conn = mysql.connector.connect(
+                    host='localhost',
+                    user='root',
+                    password='mysql',
+                    charset='utf8mb4'
+                )
+            except Error:
+                # If failed, try with 'root' password
+                self.conn = mysql.connector.connect(
+                    host='localhost',
+                    user='root',
+                    password='root',
+                    charset='utf8mb4'
+                )
+            
+            # Create cursor
             self.cursor = self.conn.cursor()
+            
+            # Create database if not exists
+            self.cursor.execute("CREATE DATABASE IF NOT EXISTS web_store")
+            self.cursor.execute("USE web_store")
+            
+            # Create tables
             self.create_tables()
+            
+            print("Database connection successful")
+            
         except Error as e:
-            print(f"Error connecting to MySQL: {e}")
+            print("\nError connecting to MySQL. Please check your MySQL configuration:")
+            print("1. Make sure XAMPP/MySQL is running")
+            print("2. Default XAMPP MySQL credentials are:")
+            print("   - Username: root")
+            print("   - Password: (empty)")
+            print(f"\nError details: {str(e)}")
+            
+            # Additional help for XAMPP users
+            print("\nTo fix this:")
+            print("1. Open XAMPP Control Panel")
+            print("2. Make sure MySQL is running (Status should be green)")
+            print("3. Click 'Shell' button")
+            print("4. Type: mysql -u root")
+            print("5. If that fails, try: mysql -u root -p")
+            print("   (press Enter when asked for password)")
+            raise
 
     def create_tables(self):
         try:
-            # Create products table
+            # Create products table with quantity field
             self.cursor.execute('''
                 CREATE TABLE IF NOT EXISTS products (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    id INT PRIMARY KEY,
                     name VARCHAR(255) NOT NULL,
                     price DECIMAL(10, 2) NOT NULL,
-                    quantity INT NOT NULL DEFAULT 0,
                     category ENUM('cake', 'food', 'drink') NOT NULL,
                     description TEXT,
                     image_url VARCHAR(255),
+                    quantity INT DEFAULT 0,
                     is_available BOOLEAN DEFAULT TRUE,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
@@ -44,25 +85,53 @@ class Database:
             ''')
             
             self.conn.commit()
+            print("Tables created successfully")
+            
         except Error as e:
             print(f"Error creating tables: {e}")
+            raise
 
-    def reset_auto_increment(self, table_name):
+    def get_next_id(self):
         try:
-            # Find the maximum ID in the table
-            self.cursor.execute(f"SELECT MAX(id) FROM {table_name}")
-            max_id = self.cursor.fetchone()[0]
-            if max_id is None:
-                max_id = 0
+            # Get list of all IDs
+            self.cursor.execute("SELECT id FROM products ORDER BY id")
+            ids = [row[0] for row in self.cursor.fetchall()]
             
-            # Set the auto increment to max_id + 1
-            self.cursor.execute(f"ALTER TABLE {table_name} AUTO_INCREMENT = {max_id + 1}")
-            self.conn.commit()
-            print(f"Auto-increment for {table_name} reset to {max_id + 1}")
+            if not ids:
+                return 1  # First product
+            
+            # Find first gap in sequence
+            expected_id = 1
+            for current_id in ids:
+                if current_id != expected_id:
+                    return expected_id
+                expected_id += 1
+            
+            # If no gaps, return next number
+            return expected_id
+            
         except Error as e:
-            print(f"Error resetting auto-increment for {table_name}: {e}")
+            print(f"Error getting next ID: {e}")
+            return None
+
+    def reconnect_if_needed(self):
+        try:
+            if self.conn is None or not self.conn.is_connected():
+                print("Reconnecting to database...")
+                self.connect()
+        except Error as e:
+            print(f"Error reconnecting: {e}")
+            raise
 
     def close(self):
-        if self.conn.is_connected():
-            self.cursor.close()
-            self.conn.close()
+        try:
+            if self.conn and self.conn.is_connected():
+                if self.cursor:
+                    self.cursor.close()
+                self.conn.close()
+                print("Database connection closed")
+        except Error as e:
+            print(f"Error closing connection: {e}")
+
+    def __del__(self):
+        self.close()

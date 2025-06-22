@@ -3,37 +3,106 @@ from mysql.connector import Error
 
 class ProductManager:
     def __init__(self):
-        self.db = Database()
-
-    def add_product(self, name, price, category, description=None, image_url=None, attributes=None):
         try:
-            # Validate inputs
-            if not isinstance(name, str) or not name.strip():
-                raise ValueError("Invalid product name")
-            
-            if not isinstance(price, (int, float)) or price < 0:
-                raise ValueError("Invalid price")
-            
-            if category not in ['cake', 'food', 'drink']:
-                raise ValueError("Invalid category")
+            self.db = Database()
+        except Exception as e:
+            print(f"Error initializing ProductManager: {e}")
+            raise
 
-            # Insert product
-            sql = '''INSERT INTO products (name, price, category, description, image_url) 
-                    VALUES (%s, %s, %s, %s, %s)'''
-            values = (name, price, category, description, image_url)
+    def ensure_connection(self):
+        self.db.reconnect_if_needed()
+
+    def add_product(self, name, price, category, quantity=0, description=None, image_url=None, attributes=None):
+        try:
+            self.ensure_connection()
+            
+            # Get next available ID
+            next_id = self.db.get_next_id()
+            if next_id is None:
+                raise Exception("Could not generate product ID")
+
+            # Insert product with specific ID
+            sql = '''INSERT INTO products (id, name, price, category, quantity, description, image_url) 
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)'''
+            values = (next_id, name, price, category, quantity, description, image_url)
             
             self.db.cursor.execute(sql, values)
-            product_id = self.db.cursor.lastrowid
             
             # Insert attributes if provided
-            if attributes and isinstance(attributes, dict) and product_id:
+            if attributes and isinstance(attributes, dict):
                 attr_sql = '''INSERT INTO product_attributes 
                             (product_id, attribute_type, attribute_value) 
                             VALUES (%s, %s, %s)'''
                 
                 attr_values = []
                 for attr_type, values in attributes.items():
-                    # Ensure values is a list
+                    if isinstance(values, str):
+                        values = [values]
+                    for value in values:
+                        if value and isinstance(value, str):
+                            attr_values.append((next_id, attr_type, value.strip()))
+                
+                if attr_values:
+                    self.db.cursor.executemany(attr_sql, attr_values)
+            
+            self.db.conn.commit()
+            print(f"Product added successfully with ID: {next_id}")
+            return next_id
+            
+        except Error as e:
+            print(f"Error adding product: {e}")
+            if self.db.conn:
+                self.db.conn.rollback()
+            return None
+
+    def update_product(self, product_id, name=None, price=None, category=None, 
+                      quantity=None, description=None, image_url=None, attributes=None):
+        try:
+            self.ensure_connection()
+            
+            # Update product details
+            update_fields = []
+            values = []
+            
+            if name is not None:
+                update_fields.append("name = %s")
+                values.append(name)
+            if price is not None:
+                update_fields.append("price = %s")
+                values.append(price)
+            if category is not None:
+                update_fields.append("category = %s")
+                values.append(category)
+            if quantity is not None:
+                update_fields.append("quantity = %s")
+                values.append(quantity)
+            if description is not None:
+                update_fields.append("description = %s")
+                values.append(description)
+            if image_url is not None:
+                update_fields.append("image_url = %s")
+                values.append(image_url)
+                
+            if update_fields:
+                sql = f"UPDATE products SET {', '.join(update_fields)} WHERE id = %s"
+                values.append(product_id)
+                self.db.cursor.execute(sql, tuple(values))
+                
+            # Update attributes if provided
+            if attributes:
+                # Delete existing attributes
+                self.db.cursor.execute(
+                    "DELETE FROM product_attributes WHERE product_id = %s",
+                    (product_id,)
+                )
+                
+                # Insert new attributes
+                attr_sql = '''INSERT INTO product_attributes 
+                            (product_id, attribute_type, attribute_value) 
+                            VALUES (%s, %s, %s)'''
+                
+                attr_values = []
+                for attr_type, values in attributes.items():
                     if isinstance(values, str):
                         values = [values]
                     for value in values:
@@ -44,20 +113,19 @@ class ProductManager:
                     self.db.cursor.executemany(attr_sql, attr_values)
             
             self.db.conn.commit()
-            print(f"Product added successfully with ID: {product_id}")  # Debug log
-            return product_id
-
+            print(f"Product {product_id} updated successfully")
+            return True
+            
         except Error as e:
-            print(f"Database error in add_product: {e}")  # Debug log
-            self.db.conn.rollback()
-            return None
-        except Exception as e:
-            print(f"Error in add_product: {e}")  # Debug log
-            self.db.conn.rollback()
-            return None
+            print(f"Error updating product: {e}")
+            if self.db.conn:
+                self.db.conn.rollback()
+            return False
 
     def get_product(self, product_id):
         try:
+            self.ensure_connection()
+            
             # Get product details
             sql = '''SELECT p.*, GROUP_CONCAT(
                         CONCAT(pa.attribute_type, ':', pa.attribute_value)
@@ -89,12 +157,15 @@ class ProductManager:
                 product['attributes'] = attrs
             
             return product
+            
         except Error as e:
-            print(f"Database error in get_product: {e}")  # Debug log
+            print(f"Error getting product: {e}")
             return None
 
     def get_all_products(self, category=None):
         try:
+            self.ensure_connection()
+            
             # Base query
             sql = '''SELECT p.*, GROUP_CONCAT(
                         CONCAT(pa.attribute_type, ':', pa.attribute_value)
@@ -103,13 +174,11 @@ class ProductManager:
                     FROM products p
                     LEFT JOIN product_attributes pa ON p.id = pa.product_id'''
             
-            # Add category filter if provided
             if category:
                 sql += ' WHERE p.category = %s'
             
-            sql += ' GROUP BY p.id'
+            sql += ' GROUP BY p.id ORDER BY p.id'  # Add ORDER BY to maintain ID sequence
             
-            # Execute query
             if category:
                 self.db.cursor.execute(sql, (category,))
             else:
@@ -137,23 +206,34 @@ class ProductManager:
                 products.append(product)
                 
             return products
+            
         except Error as e:
-            print(f"Database error in get_all_products: {e}")  # Debug log
+            print(f"Error getting products: {e}")
             return []
 
     def delete_product(self, product_id):
         try:
+            self.ensure_connection()
+            
             sql = 'DELETE FROM products WHERE id = %s'
             self.db.cursor.execute(sql, (product_id,))
             self.db.conn.commit()
-            return self.db.cursor.rowcount > 0
+            
+            rows_affected = self.db.cursor.rowcount
+            if rows_affected > 0:
+                print(f"Product {product_id} deleted successfully")
+            return rows_affected > 0
+            
         except Error as e:
-            print(f"Database error in delete_product: {e}")  # Debug log
-            self.db.conn.rollback()
+            print(f"Error deleting product: {e}")
+            if self.db.conn:
+                self.db.conn.rollback()
             return False
 
     def search_products(self, keyword):
         try:
+            self.ensure_connection()
+            
             sql = '''SELECT p.*, GROUP_CONCAT(
                         CONCAT(pa.attribute_type, ':', pa.attribute_value)
                         SEPARATOR '|'
@@ -161,7 +241,8 @@ class ProductManager:
                     FROM products p
                     LEFT JOIN product_attributes pa ON p.id = pa.product_id
                     WHERE p.name LIKE %s OR p.description LIKE %s
-                    GROUP BY p.id'''
+                    GROUP BY p.id
+                    ORDER BY p.id'''
             
             search_term = f'%{keyword}%'
             self.db.cursor.execute(sql, (search_term, search_term))
@@ -187,9 +268,11 @@ class ProductManager:
                 products.append(product)
                 
             return products
+            
         except Error as e:
-            print(f"Database error in search_products: {e}")  # Debug log
+            print(f"Error searching products: {e}")
             return []
 
     def close(self):
-        self.db.close()
+        if self.db:
+            self.db.close()
