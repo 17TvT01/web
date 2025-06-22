@@ -20,6 +20,7 @@ export const ProductList = ({ category, filters, sortBy, searchQuery }: Props) =
         const fetchProducts = async () => {
             setLoading(true);
             try {
+                await productService.loadProducts();
                 const allProducts = await productService.getProducts();
                 let filteredProducts = allProducts;
 

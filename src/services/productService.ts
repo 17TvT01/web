@@ -14,25 +14,30 @@ class ProductService {
 
     async loadProducts(): Promise<void> {
         try {
-            // Trong thực tế, đây sẽ là API endpoint
-            this.products = [
-                {
-                    id: '1',
-                    name: 'Cà phê sữa',
-                    price: 35000,
-                    image: '/images/coffee1.jpg',
-                    category: 'Cà phê',
-                    rating: 4.5
-                },
-                {
-                    id: '2',
-                    name: 'Trà sữa trân châu',
-                    price: 45000,
-                    image: '/images/tea1.jpg',
-                    category: 'Trà sữa',
-                    rating: 4.8
-                }
-            ];
+            const response = await fetch('http://localhost:5000/products');
+            if (!response.ok) {
+                throw new Error('Failed to fetch products from backend');
+            }
+            const data = await response.json();
+
+            // Map backend product data to frontend Product type
+            this.products = data.map((p: any) => ({
+                id: p.id.toString(),
+                name: p.name,
+                price: p.price,
+                image: p.image_url || '/images/default-product.jpg',
+                category: p.category,
+                rating: p.rating || 0,
+                filters: p.attributes ? p.attributes.reduce((acc: any, attr: any) => {
+                    if (!acc[attr.type]) acc[attr.type] = [];
+                    acc[attr.type].push(attr.value);
+                    return acc;
+                }, {}) : {},
+                inStock: p.quantity > 0,
+                onSale: false,
+                salePrice: null,
+                isNew: false
+            }));
         } catch (error) {
             console.error('Error loading products:', error);
             throw error;
@@ -47,7 +52,7 @@ class ProductService {
         }
 
         if (subcategory) {
-            filteredProducts = filteredProducts.filter(p => p.subcategory === subcategory);
+            filteredProducts = filteredProducts.filter(p => p.subCategory === subcategory);
         }
 
         return filteredProducts;
