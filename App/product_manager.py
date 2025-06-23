@@ -1,5 +1,8 @@
 from database import Database
 from mysql.connector import Error
+import spacy
+
+nlp = spacy.load("en_core_web_sm")
 
 class ProductManager:
     def __init__(self):
@@ -11,6 +14,21 @@ class ProductManager:
 
     def ensure_connection(self):
         self.db.reconnect_if_needed()
+
+    def _extract_attributes_from_text(self, name, description):
+        extracted_attributes = {}
+        text = f"{name}. {description}" if description else name
+        doc = nlp(text)
+
+        for ent in doc.ents:
+            # Simple heuristic: use entity label as attribute type, and entity text as value
+            # This can be refined based on specific product attribute needs
+            attr_type = ent.label_
+            attr_value = ent.text
+            if attr_type not in extracted_attributes:
+                extracted_attributes[attr_type] = []
+            extracted_attributes[attr_type].append(attr_value)
+        return extracted_attributes
 
     def add_product(self, name, price, category, quantity=0, description=None, image_url=None, attributes=None):
         try:
@@ -28,8 +46,24 @@ class ProductManager:
             
             self.db.cursor.execute(sql, values)
             
-            # Insert attributes if provided
-            if attributes and isinstance(attributes, dict):
+            # Extract attributes from name and description
+            extracted_attrs = self._extract_attributes_from_text(name, description)
+
+            # Merge extracted attributes with manually provided attributes
+            if attributes is None:
+                attributes = {}
+            elif not isinstance(attributes, dict):
+                print("Warning: Provided attributes are not a dictionary. Ignoring.")
+                attributes = {}
+
+            for attr_type, values in extracted_attrs.items():
+                if attr_type not in attributes:
+                    attributes[attr_type] = []
+                for value in values:
+                    if value not in attributes[attr_type]: # Avoid duplicates
+                        attributes[attr_type].append(value)
+
+            if attributes:
                 attr_sql = '''INSERT INTO product_attributes 
                             (product_id, attribute_type, attribute_value) 
                             VALUES (%s, %s, %s)'''
@@ -88,7 +122,29 @@ class ProductManager:
                 values.append(product_id)
                 self.db.cursor.execute(sql, tuple(values))
                 
-            # Update attributes if provided
+            # Extract attributes from name and description if they are being updated
+            current_product = self.get_product(product_id)
+            if current_product:
+                updated_name = name if name is not None else current_product.get('name')
+                updated_description = description if description is not None else current_product.get('description')
+                extracted_attrs = self._extract_attributes_from_text(updated_name, updated_description)
+            else:
+                extracted_attrs = {}
+
+            # Merge extracted attributes with manually provided attributes
+            if attributes is None:
+                attributes = {}
+            elif not isinstance(attributes, dict):
+                print("Warning: Provided attributes are not a dictionary. Ignoring.")
+                attributes = {}
+
+            for attr_type, values in extracted_attrs.items():
+                if attr_type not in attributes:
+                    attributes[attr_type] = []
+                for value in values:
+                    if value not in attributes[attr_type]: # Avoid duplicates
+                        attributes[attr_type].append(value)
+
             if attributes:
                 # Delete existing attributes
                 self.db.cursor.execute(

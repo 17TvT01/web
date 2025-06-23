@@ -10,7 +10,7 @@ interface Props {
     filters: FilterState;
     sortBy: string;
     searchQuery: string;
-}
+} 
 
 export const ProductList = ({ category, filters, sortBy, searchQuery }: Props) => {
     const [products, setProducts] = useState<Product[]>([]);

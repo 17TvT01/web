@@ -300,6 +300,9 @@ class StoreGUI:
             quantity_str = self.product_fields['quantity'].get().strip()
             description = self.product_fields['description'].get().strip()
             category_display = self.new_category_var.get()
+
+            # Generate attributes using AI method
+            attributes = self.generate_attributes(name, description)
             
             # Validate inputs
             if not name:
