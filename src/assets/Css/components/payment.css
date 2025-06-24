@@ -202,6 +202,113 @@
     }
 }
 
+/* Order Items */
+.order-items {
+    margin-bottom: 1.5rem;
+    max-height: 300px;
+    overflow-y: auto;
+    padding-right: 10px;
+}
+
+.item-info {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.item-name {
+    flex: 1;
+    font-weight: 500;
+}
+
+.item-quantity {
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.item-price {
+    font-weight: 500;
+    color: var(--primary-color);
+}
+
+/* Summary Section */
+.summary-section {
+    background: #fff;
+    padding: 1rem;
+    border-radius: var(--border-radius);
+    margin-top: 1rem;
+    border: 1px solid var(--border-color);
+}
+
+.summary-section h4 {
+    margin: 0 0 1rem;
+    font-size: 1.1rem;
+    color: var(--text-color);
+}
+
+.total {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 2px solid var(--border-color);
+}
+
+.total-price {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: var(--primary-color);
+}
+
+/* QR Code Container */
+.qr-code-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-top: 1.5rem;
+    padding: 1.5rem;
+    background: white;
+    border: 2px solid var(--border-color);
+    border-radius: var(--border-radius);
+}
+
+.qr-code-container p {
+    margin-bottom: 1rem;
+    font-weight: 500;
+    color: var(--text-color);
+}
+
+.qr-code-container .qr-price {
+    margin-top: 1rem;
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: var(--primary-color);
+}
+
+.qr-code-container svg {
+    padding: 1rem;
+    background: white;
+    border-radius: var(--border-radius);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+@media (max-width: 480px) {
+    .qr-code-container svg {
+        width: 160px !important;
+        height: 160px !important;
+    }
+
+    .order-items {
+        max-height: 200px;
+    }
+
+    .item-name {
+        font-size: 0.9rem;
+    }
+
+    .item-price {
+        font-size: 0.9rem;
+    }
+}
+
 /* QR Code Container */
 .qr-code-container {
     display: flex;

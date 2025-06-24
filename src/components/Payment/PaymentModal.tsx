@@ -3,6 +3,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { paymentService } from '../../services/paymentService';
 import { cartService } from '../../services/cartService';
 import { uiService } from '../../services/uiService';
+import { CartItem } from '../../types';
 
 type PaymentMethod = 'cash' | 'card' | 'momo' | 'zalopay';
 type OrderType = 'dine-in' | 'takeaway';
@@ -39,6 +40,25 @@ export const PaymentModal = () => {
         street: '',
         city: '',
     });
+    const [items, setItems] = useState<CartItem[]>([]);
+
+    useEffect(() => {
+        const handleCartUpdate = (e: CustomEvent) => {
+            setItems(e.detail.items);
+            setTotalPrice(e.detail.totalPrice);
+        };
+
+        // Initial state
+        setItems(cartService.getItems());
+        setTotalPrice(cartService.getTotalPrice());
+
+        // Listen for cart updates
+        window.addEventListener('cart:updated', handleCartUpdate as EventListener);
+
+        return () => {
+            window.removeEventListener('cart:updated', handleCartUpdate as EventListener);
+        };
+    }, []);
 
     useEffect(() => {
         setTotalPrice(cartService.getTotalPrice());
@@ -57,11 +77,19 @@ export const PaymentModal = () => {
     };
 
     const getQRValue = () => {
+        // Tạo chi tiết đơn hàng
+        const orderDetails = items.map(item =>
+            `${item.name} x${item.quantity}`
+        ).join(', ');
+
         // Format: paymentApp://pay?amount=XXX&message=XXX
-        const message = `Thanh toán ${orderType === 'dine-in' ? 'tại quán' : 'mang về'}`;
+        const message = `${orderType === 'dine-in' ? 'Thanh toán tại quán' : 'Đơn hàng mang về'}: ${orderDetails}`;
         const amount = totalPrice;
         
-        if (paymentMethod === 'momo') {
+        if (orderType === 'dine-in') {
+            // QR code cho thanh toán tại quán
+            return `vietnamqr://pay?amount=${amount}&message=${encodeURIComponent(message)}`;
+        } else if (paymentMethod === 'momo') {
             return `momo://pay?amount=${amount}&message=${encodeURIComponent(message)}`;
         } else if (paymentMethod === 'zalopay') {
             return `zalopay://pay?amount=${amount}&message=${encodeURIComponent(message)}`;
@@ -155,26 +183,43 @@ export const PaymentModal = () => {
                         )}
 
                         <div className="payment-summary">
-                            <h3>Thông tin thanh toán</h3>
-                            <div className="summary-item">
-                                <span>Hình thức:</span>
-                                <span>{orderType === 'dine-in' ? 'Dùng tại quán' : 'Mang về'}</span>
-                            </div>
-                            <div className="summary-item">
-                                <span>Phương thức:</span>
-                                <span>
-                                    {paymentMethod === 'cash' && 'Tiền mặt'}
-                                    {paymentMethod === 'card' && 'Thẻ ngân hàng'}
-                                    {paymentMethod === 'momo' && 'Ví MoMo'}
-                                    {paymentMethod === 'zalopay' && 'ZaloPay'}
-                                </span>
-                            </div>
-                            <div className="summary-item">
-                                <span>Tổng tiền:</span>
-                                <span>{totalPrice.toLocaleString()}₫</span>
+                            <h3>Chi tiết đơn hàng</h3>
+                            <div className="order-items">
+                                {items.map(item => (
+                                    <div key={item.id} className="summary-item">
+                                        <div className="item-info">
+                                            <span className="item-name">{item.name}</span>
+                                            <span className="item-quantity">x{item.quantity}</span>
+                                        </div>
+                                        <span className="item-price">
+                                            {((item.onSale ? item.salePrice || item.price : item.price) * item.quantity).toLocaleString()}₫
+                                        </span>
+                                    </div>
+                                ))}
                             </div>
 
-                            {(paymentMethod === 'momo' || paymentMethod === 'zalopay') && (
+                            <div className="summary-section">
+                                <h4>Thông tin thanh toán</h4>
+                                <div className="summary-item">
+                                    <span>Hình thức:</span>
+                                    <span>{orderType === 'dine-in' ? 'Dùng tại quán' : 'Mang về'}</span>
+                                </div>
+                                <div className="summary-item">
+                                    <span>Phương thức:</span>
+                                    <span>
+                                        {paymentMethod === 'cash' && 'Tiền mặt'}
+                                        {paymentMethod === 'card' && 'Thẻ ngân hàng'}
+                                        {paymentMethod === 'momo' && 'Ví MoMo'}
+                                        {paymentMethod === 'zalopay' && 'ZaloPay'}
+                                    </span>
+                                </div>
+                                <div className="summary-item total">
+                                    <span>Tổng tiền:</span>
+                                    <span className="total-price">{totalPrice.toLocaleString()}₫</span>
+                                </div>
+                            </div>
+
+                            {(orderType === 'dine-in' || paymentMethod === 'momo' || paymentMethod === 'zalopay') && (
                                 <div className="qr-code-container">
                                     <p>Quét mã để thanh toán</p>
                                     <QRCodeSVG
@@ -183,6 +228,7 @@ export const PaymentModal = () => {
                                         level="L"
                                         includeMargin={true}
                                     />
+                                    <p className="qr-price">{totalPrice.toLocaleString()}₫</p>
                                 </div>
                             )}
                         </div>
