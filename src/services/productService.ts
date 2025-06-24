@@ -115,7 +115,7 @@ class ProductService {
                 image: p.image,
                 category: p.category
             }))
-            .slice(0, 5); // Limit to 5 results
+            .slice(0, 5);
     }
 
     getProductById(id: string): Product | undefined {

@@ -1,8 +1,5 @@
 from database import Database
 from mysql.connector import Error
-import spacy
-
-nlp = spacy.load("en_core_web_sm")
 
 class ProductManager:
     def __init__(self):
@@ -16,19 +13,18 @@ class ProductManager:
         self.db.reconnect_if_needed()
 
     def _extract_attributes_from_text(self, name, description):
-        extracted_attributes = {}
-        text = f"{name}. {description}" if description else name
-        doc = nlp(text)
-
-        for ent in doc.ents:
-            # Simple heuristic: use entity label as attribute type, and entity text as value
-            # This can be refined based on specific product attribute needs
-            attr_type = ent.label_
-            attr_value = ent.text
-            if attr_type not in extracted_attributes:
-                extracted_attributes[attr_type] = []
-            extracted_attributes[attr_type].append(attr_value)
-        return extracted_attributes
+        # Đơn giản hóa việc trích xuất thuộc tính
+        attributes = {
+            'name': [name],
+            'keywords': []
+        }
+        
+        # Thêm từ khóa từ mô tả nếu có
+        if description:
+            keywords = [word.strip() for word in description.split() if len(word.strip()) > 2]
+            attributes['keywords'] = keywords[:5]  # Giới hạn 5 từ khóa
+            
+        return attributes
 
     def add_product(self, name, price, category, quantity=0, description=None, image_url=None, attributes=None):
         try:

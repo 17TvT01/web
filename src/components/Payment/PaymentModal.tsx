@@ -1,21 +1,48 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { QRCodeSVG } from 'qrcode.react';
 import { paymentService } from '../../services/paymentService';
+import { cartService } from '../../services/cartService';
 import { uiService } from '../../services/uiService';
 
 type PaymentMethod = 'cash' | 'card' | 'momo' | 'zalopay';
 type OrderType = 'dine-in' | 'takeaway';
 
 export const PaymentModal = () => {
-    const orderType = localStorage.getItem('orderType') as OrderType;
-    const paymentMethod = localStorage.getItem('paymentMethod') as PaymentMethod;
+    const [orderType, setOrderType] = useState<OrderType>(localStorage.getItem('orderType') as OrderType);
+    const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(localStorage.getItem('paymentMethod') as PaymentMethod);
+    const [totalPrice, setTotalPrice] = useState(0);
+
+    useEffect(() => {
+        const handleOrderTypeChange = (e: CustomEvent<{ orderType: OrderType }>) => {
+            setOrderType(e.detail.orderType);
+        };
+
+        const handlePaymentMethodChange = () => {
+            const newPaymentMethod = localStorage.getItem('paymentMethod') as PaymentMethod;
+            setPaymentMethod(newPaymentMethod);
+        };
+
+        // Listen for custom orderType change event
+        window.addEventListener('orderType:changed', handleOrderTypeChange as EventListener);
+        // Listen for localStorage changes from other tabs
+        window.addEventListener('storage', handlePaymentMethodChange);
+
+        return () => {
+            window.removeEventListener('orderType:changed', handleOrderTypeChange as EventListener);
+            window.removeEventListener('storage', handlePaymentMethodChange);
+        };
+    }, []);
     
     const [details, setDetails] = useState({
         fullName: '',
         phone: '',
         street: '',
         city: '',
-        tableNumber: ''
     });
+
+    useEffect(() => {
+        setTotalPrice(cartService.getTotalPrice());
+    }, []);
 
     const handleClose = () => {
         uiService.hideForm('payment');
@@ -27,6 +54,19 @@ export const PaymentModal = () => {
             ...prev,
             [name]: value
         }));
+    };
+
+    const getQRValue = () => {
+        // Format: paymentApp://pay?amount=XXX&message=XXX
+        const message = `Thanh toán ${orderType === 'dine-in' ? 'tại quán' : 'mang về'}`;
+        const amount = totalPrice;
+        
+        if (paymentMethod === 'momo') {
+            return `momo://pay?amount=${amount}&message=${encodeURIComponent(message)}`;
+        } else if (paymentMethod === 'zalopay') {
+            return `zalopay://pay?amount=${amount}&message=${encodeURIComponent(message)}`;
+        }
+        return '';
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -43,9 +83,7 @@ export const PaymentModal = () => {
                         street: details.street,
                         city: details.city
                     }
-                } : {
-                    tableNumber: details.tableNumber
-                })
+                } : {})
             };
 
             await paymentService.submitOrder(paymentDetails);
@@ -67,7 +105,7 @@ export const PaymentModal = () => {
 
                 <form onSubmit={handleSubmit}>
                     <div className="modal-content">
-                        {orderType === 'takeaway' ? (
+                        {orderType === 'takeaway' && (
                             <>
                                 <div className="form-group">
                                     <label>Họ và tên</label>
@@ -114,18 +152,6 @@ export const PaymentModal = () => {
                                     />
                                 </div>
                             </>
-                        ) : (
-                            <div className="form-group">
-                                <label>Số bàn</label>
-                                <input
-                                    type="text"
-                                    name="tableNumber"
-                                    className="form-control"
-                                    value={details.tableNumber}
-                                    onChange={handleChange}
-                                    required
-                                />
-                            </div>
                         )}
 
                         <div className="payment-summary">
@@ -143,6 +169,22 @@ export const PaymentModal = () => {
                                     {paymentMethod === 'zalopay' && 'ZaloPay'}
                                 </span>
                             </div>
+                            <div className="summary-item">
+                                <span>Tổng tiền:</span>
+                                <span>{totalPrice.toLocaleString()}₫</span>
+                            </div>
+
+                            {(paymentMethod === 'momo' || paymentMethod === 'zalopay') && (
+                                <div className="qr-code-container">
+                                    <p>Quét mã để thanh toán</p>
+                                    <QRCodeSVG
+                                        value={getQRValue()}
+                                        size={200}
+                                        level="L"
+                                        includeMargin={true}
+                                    />
+                                </div>
+                            )}
                         </div>
                     </div>
 

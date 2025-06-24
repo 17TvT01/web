@@ -41,9 +41,13 @@ export const Cart = () => {
     const handleOrderTypeSelect = (type: 'dine-in' | 'takeaway') => {
         setOrderType(type);
         localStorage.setItem('orderType', type);
+        // Dispatch custom event for orderType change
+        window.dispatchEvent(new CustomEvent('orderType:changed', {
+            detail: { orderType: type }
+        }));
         uiService.hideAllOverlays();
         setTimeout(() => {
-            uiService.showForm('paymentOptions');
+            uiService.showForm('payment');
         }, 300);
     };
 
