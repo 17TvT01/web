@@ -1,5 +1,6 @@
 from database import Database
 from mysql.connector import Error
+import os
 
 class ProductManager:
     def __init__(self):
@@ -216,7 +217,9 @@ class ProductManager:
 
     def get_all_products(self, category=None):
         try:
+            print("Đang kết nối database để lấy sản phẩm...")
             self.ensure_connection()
+            print("Đã kết nối database thành công")
             
             # Base query
             sql = '''SELECT p.*, GROUP_CONCAT(
@@ -237,6 +240,7 @@ class ProductManager:
                 self.db.cursor.execute(sql)
                 
             results = self.db.cursor.fetchall()
+            print(f"Đã tìm thấy {len(results)} sản phẩm")
             
             # Convert results to list of dictionaries
             columns = [desc[0] for desc in self.db.cursor.description]
@@ -260,13 +264,18 @@ class ProductManager:
             return products
             
         except Error as e:
-            print(f"Error getting products: {e}")
+            print(f"Lỗi khi lấy sản phẩm từ database: {e}")
             return []
 
     def delete_product(self, product_id):
         try:
             self.ensure_connection()
             
+            # Lấy thông tin sản phẩm trước khi xóa để có đường dẫn hình ảnh
+            product = self.get_product(product_id)
+            image_path = product.get('image_url') if product else None
+            
+            # Xóa sản phẩm từ cơ sở dữ liệu
             sql = 'DELETE FROM products WHERE id = %s'
             self.db.cursor.execute(sql, (product_id,))
             self.db.conn.commit()
@@ -274,6 +283,15 @@ class ProductManager:
             rows_affected = self.db.cursor.rowcount
             if rows_affected > 0:
                 print(f"Product {product_id} deleted successfully")
+                
+                # Xóa tệp hình ảnh nếu tồn tại
+                if image_path and os.path.exists(image_path):
+                    try:
+                        os.remove(image_path)
+                        print(f"Image file {image_path} deleted successfully")
+                    except Exception as e:
+                        print(f"Error deleting image file: {e}")
+                        
             return rows_affected > 0
             
         except Error as e:

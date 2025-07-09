@@ -26,7 +26,7 @@ class ProductService {
                 name: p.name,
                 price: p.price,
                 image: p.image_url || '/images/default-product.jpg',
-                category: p.category,
+                category: p.category.toLowerCase(), // Đảm bảo category được chuyển thành chữ thường
                 rating: p.rating || 0,
                 filters: p.attributes ? p.attributes.reduce((acc: any, attr: any) => {
                     if (!acc[attr.type]) acc[attr.type] = [];
@@ -47,12 +47,18 @@ class ProductService {
     getProducts(category: string = 'Tất cả', subcategory: string | null = null): Product[] {
         let filteredProducts = [...this.products];
 
-        if (category !== 'Tất cả') {
-            filteredProducts = filteredProducts.filter(p => p.category === category);
+        // Chuyển đổi category sang chữ thường để so sánh nhất quán
+        const normalizedCategory = category.toLowerCase();
+
+        if (normalizedCategory !== 'tất cả' && normalizedCategory !== 'all') {
+            filteredProducts = filteredProducts.filter(p => p.category === normalizedCategory);
         }
 
         if (subcategory) {
-            filteredProducts = filteredProducts.filter(p => p.subCategory === subcategory);
+            const normalizedSubcategory = subcategory.toLowerCase();
+            filteredProducts = filteredProducts.filter(p => 
+                p.subCategory && p.subCategory.toLowerCase() === normalizedSubcategory
+            );
         }
 
         return filteredProducts;

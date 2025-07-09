@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Header } from '../Header/Header';
 import { ProductList } from '../Product/ProductList';
 import { ProductNavigation } from '../Product/ProductNavigation';
@@ -8,6 +9,9 @@ import { PaymentModal } from '../Payment/PaymentModal';
 import { PaymentOptionsModal } from '../Payment/PaymentOptionsModal';
 import { OrderTypeModal } from '../Order/OrderTypeModal';
 import { Notification } from '../Notification/Notification';
+import { Login } from '../Auth/Login';
+import { Register } from '../Auth/Register';
+import { AppRoutes } from '../../routes';
 import { uiService } from '../../services/uiService';
 import { 
     MainCategory, 
@@ -24,13 +28,19 @@ type FilterConfig = {
 };
 
 export const Layout = () => {
+    const location = useLocation();
+    const isHomePage = location.pathname === '/';
+    
     const [activeCategory, setActiveCategory] = useState<MainCategory>('all');
     const [selectedFilters, setSelectedFilters] = useState<FilterState>({});
     const [sortBy, setSortBy] = useState<string>('');
     const [searchQuery, setSearchQuery] = useState('');
 
     useEffect(() => {
-        uiService.initialize();
+        // Initialize UI service after components are mounted
+        setTimeout(() => {
+            uiService.initialize();
+        }, 0);
     }, []);
 
     const handleCategoryChange = (category: MainCategory) => {
@@ -150,13 +160,15 @@ export const Layout = () => {
         <>
             <Header onSearch={setSearchQuery} />
             
-            <ProductNavigation 
-                activeCategory={activeCategory}
-                onCategoryChange={handleCategoryChange}
-            />
+            {isHomePage && (
+                <ProductNavigation 
+                    activeCategory={activeCategory}
+                    onCategoryChange={handleCategoryChange}
+                />
+            )}
 
             <div className="main-container">
-                {activeCategory !== 'all' && (
+                {isHomePage && activeCategory !== 'all' && (
                     <aside className="sidebar">
                         <div className="category-menu">
                             {renderFilters()}
@@ -165,8 +177,8 @@ export const Layout = () => {
                 )}
 
                 <main className="content-area">
-                    <ProductList 
-                        category={activeCategory} 
+                    <AppRoutes 
+                        category={activeCategory}
                         filters={selectedFilters}
                         sortBy={sortBy}
                         searchQuery={searchQuery}
@@ -176,137 +188,9 @@ export const Layout = () => {
 
             <Footer />
 
-            {/* Auth Forms */}
-            <div className="form-overlay login-form">
-                <div className="auth-form">
-                    <div className="form-header">
-                        <h2>Đăng nhập</h2>
-                        <button className="close-form">
-                            <i className="fas fa-times"></i>
-                        </button>
-                    </div>
-                    <form onSubmit={(e) => window.handleLogin(e)}>
-                        <div className="form-group">
-                            <label htmlFor="login-email">Email</label>
-                            <input 
-                                type="text"
-                                id="login-email" 
-                                className="form-control" 
-                                placeholder="Nhập email của bạn" 
-                                required 
-                            />
-                        </div>
-                        <div className="form-group password-field">
-                            <label htmlFor="login-password">Mật khẩu</label>
-                            <input 
-                                type="password"
-                                id="login-password"
-                                className="form-control" 
-                                placeholder="Nhập mật khẩu" 
-                                required 
-                            />
-                            <button 
-                                type="button" 
-                                className="toggle-password"
-                                onClick={() => window.togglePasswordVisibility('login-password')}
-                            >
-                                <i className="fas fa-eye"></i>
-                            </button>
-                        </div>
-                        <div className="form-buttons">
-                            <button type="submit" className="submit-btn">Đăng nhập</button>
-                        </div>
-                    </form>
-                    <div className="switch-form">
-                        Chưa có tài khoản?
-                        <a onClick={() => {
-                            uiService.hideForm('login');
-                            setTimeout(() => uiService.showForm('register'), 300);
-                        }}>
-                            Đăng ký ngay
-                        </a>
-                    </div>
-                </div>
-            </div>
-
-            <div className="form-overlay register-form">
-                <div className="auth-form">
-                    <div className="form-header">
-                        <h2>Đăng ký</h2>
-                        <button className="close-form">
-                            <i className="fas fa-times"></i>
-                        </button>
-                    </div>
-                    <form onSubmit={(e) => window.handleRegister(e)}>
-                        <div className="form-group">
-                            <label htmlFor="register-name">Họ và tên</label>
-                            <input 
-                                type="text"
-                                id="register-name"
-                                className="form-control" 
-                                placeholder="Nhập họ và tên" 
-                                required 
-                            />
-                        </div>
-                        <div className="form-group">
-                            <label htmlFor="register-email">Email</label>
-                            <input 
-                                type="email"
-                                id="register-email"
-                                className="form-control" 
-                                placeholder="Nhập email" 
-                                required 
-                            />
-                        </div>
-                        <div className="form-group password-field">
-                            <label htmlFor="register-password">Mật khẩu</label>
-                            <input 
-                                type="password"
-                                id="register-password"
-                                className="form-control" 
-                                placeholder="Nhập mật khẩu" 
-                                required 
-                            />
-                            <button 
-                                type="button" 
-                                className="toggle-password"
-                                onClick={() => window.togglePasswordVisibility('register-password')}
-                            >
-                                <i className="fas fa-eye"></i>
-                            </button>
-                        </div>
-                        <div className="form-group password-field">
-                            <label htmlFor="register-confirm">Xác nhận mật khẩu</label>
-                            <input 
-                                type="password"
-                                id="register-confirm"
-                                className="form-control" 
-                                placeholder="Nhập lại mật khẩu" 
-                                required 
-                            />
-                            <button 
-                                type="button" 
-                                className="toggle-password"
-                                onClick={() => window.togglePasswordVisibility('register-confirm')}
-                            >
-                                <i className="fas fa-eye"></i>
-                            </button>
-                        </div>
-                        <div className="form-buttons">
-                            <button type="submit" className="submit-btn">Đăng ký</button>
-                        </div>
-                    </form>
-                    <div className="switch-form">
-                        Đã có tài khoản?
-                        <a onClick={() => {
-                            uiService.hideForm('register');
-                            setTimeout(() => uiService.showForm('login'), 300);
-                        }}>
-                            Đăng nhập
-                        </a>
-                    </div>
-                </div>
-            </div>
+            {/* Auth Components */}
+            <Login />
+            <Register />
 
             {/* Overlays and Modals */}
             <div className="dropdown-overlay"></div>

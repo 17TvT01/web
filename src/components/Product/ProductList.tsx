@@ -32,6 +32,11 @@ export const ProductList = ({ category, filters, sortBy, searchQuery }: Props) =
                 // Apply subcategory filters
                 if (Object.keys(filters).length > 0) {
                     filteredProducts = filteredProducts.filter(product => {
+                        // Chỉ áp dụng bộ lọc cho sản phẩm thuộc danh mục hiện tại
+                        if (category !== 'all' && product.category !== category) {
+                            return false;
+                        }
+                        
                         return Object.entries(filters).every(([filterType, selectedValues]) => {
                             if (selectedValues.length === 0) return true;
                             

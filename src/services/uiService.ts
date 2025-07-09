@@ -18,11 +18,15 @@ class UIService {
         try {
             // Initialize overlay
             this.overlay = document.querySelector('.dropdown-overlay');
+            console.log('Overlay initialized:', this.overlay); // Debug
 
             // Initialize forms
             const formTypes: FormType[] = ['login', 'register', 'payment', 'profile', 'orders', 'orderType', 'paymentOptions'];
             formTypes.forEach(type => {
-                const form = document.querySelector(`.${type}-form`);
+                // Try both class and ID selectors
+                const form = document.querySelector(`#${type}-form`) || document.querySelector(`.${type}-form`);
+                console.log(`Searching for form '${type}':`, form); // Debug
+                
                 if (form instanceof HTMLElement) {
                     this.forms[type] = form;
                     console.log(`Form '${type}' initialized`); // Debug
@@ -31,6 +35,7 @@ class UIService {
                     const closeBtn = form.querySelector('.close-form');
                     if (closeBtn) {
                         closeBtn.addEventListener('click', () => this.hideForm(type));
+                        console.log(`Close button handler added for '${type}'`); // Debug
                     }
                 } else {
                     console.warn(`Form '${type}' not found`);
@@ -51,6 +56,7 @@ class UIService {
 
             this.initialized = true;
             console.log('UIService initialization complete');
+            console.log('Registered forms:', Object.keys(this.forms)); // Debug
 
         } catch (error) {
             console.error('Error initializing UIService:', error);
@@ -58,12 +64,15 @@ class UIService {
     }
 
     showForm(type: FormType) {
-        console.log(`Showing form: ${type}`); // Debug
+        console.log(`Attempting to show form: ${type}`); // Debug
 
         // Hide other forms and dropdowns first
         this.hideAllOverlays();
 
-        const form = document.querySelector(`.${type}-form`);
+        // Try both class and ID selectors
+        const form = document.querySelector(`#${type}-form`) || document.querySelector(`.${type}-form`);
+        console.log(`Found form element:`, form); // Debug
+
         if (!form) {
             console.warn(`Form '${type}' not found`);
             return;
@@ -71,7 +80,10 @@ class UIService {
 
         // Show form and overlay
         form.classList.add('active');
-        this.overlay?.classList.add('active');
+        if (this.overlay) {
+            this.overlay.classList.add('active');
+            console.log('Overlay activated'); // Debug
+        }
 
         console.log(`Form '${type}' displayed`); // Debug
     }
@@ -79,7 +91,10 @@ class UIService {
     hideForm(type: FormType) {
         console.log(`Hiding form: ${type}`); // Debug
 
-        const form = document.querySelector(`.${type}-form`);
+        // Try both class and ID selectors
+        const form = document.querySelector(`#${type}-form`) || document.querySelector(`.${type}-form`);
+        console.log(`Found form element to hide:`, form); // Debug
+
         if (!form) {
             console.warn(`Form '${type}' not found`);
             return;
@@ -111,7 +126,10 @@ class UIService {
 
         // Hide all forms
         const forms = document.querySelectorAll('.form-overlay');
-        forms.forEach(form => form.classList.remove('active'));
+        forms.forEach(form => {
+            form.classList.remove('active');
+            console.log('Removed active class from form:', form); // Debug
+        });
 
         // Hide all dropdowns
         Object.values(this.dropdowns).forEach(dropdown => {
@@ -124,28 +142,29 @@ class UIService {
 
     updateUserUI(user: any) {
         const authButtons = document.querySelector('.auth-buttons');
-        const userIcon = document.querySelector('.user-icon');
-        const userName = document.querySelector('.user-name');
-        const userAvatar = document.querySelector<HTMLImageElement>('.user-avatar img');
+        const userInfo = document.querySelector('.user-menu');
+        const userName = userInfo?.querySelector('.user-name');
+        const userAvatar = userInfo?.querySelector<HTMLImageElement>('.user-avatar img');
 
-        if (authButtons instanceof HTMLElement && 
-            userIcon instanceof HTMLElement && 
-            userName instanceof HTMLElement && 
-            userAvatar) {
-            authButtons.style.display = 'none';
-            userIcon.style.display = 'block';
-            userName.textContent = user.name;
-            userAvatar.src = user.avatar || '/images/default-avatar.png';
+        if (authButtons && userInfo) {
+            authButtons.classList.add('hidden');
+            userInfo.classList.remove('hidden');
+            if (userName) userName.textContent = user.name;
+            if (userAvatar) userAvatar.src = user.avatar || '/images/default-avatar.png';
         }
+
+        // Dispatch custom event to notify React components
+        const event = new CustomEvent('auth:updated', { detail: { user } });
+        window.dispatchEvent(event);
     }
 
     resetUserUI() {
         const authButtons = document.querySelector('.auth-buttons');
-        const userIcon = document.querySelector('.user-icon');
+        const userInfo = document.querySelector('.user-menu');
 
-        if (authButtons instanceof HTMLElement && userIcon instanceof HTMLElement) {
-            authButtons.style.display = 'flex';
-            userIcon.style.display = 'none';
+        if (authButtons && userInfo) {
+            authButtons.classList.remove('hidden');
+            userInfo.classList.add('hidden');
         }
     }
 }

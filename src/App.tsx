@@ -1,20 +1,28 @@
 import { useEffect } from 'react';
+import { BrowserRouter } from 'react-router-dom';
 import { Layout } from './components/Layout/Layout';
 import { Chatbot } from './components/Chatbot/Chatbot';
 import { uiService } from './services/uiService';
 import { cartService } from './services/cartService';
 import { notificationService } from './services/notificationService';
+import { authService } from './services/authService';
 
 function App() {
   useEffect(() => {
-    const initializeApp = () => {
-      console.log('Initializing app...'); // Debug
+    const initializeServices = () => {
+      console.log('Initializing services...'); // Debug
       try {
-        // Initialize services
-        uiService.initialize();
+        // First render auth components
         cartService.restoreCart();
         notificationService.initialize();
-        
+        authService.initialize();
+
+        // Then initialize UI service after a slight delay to ensure DOM is ready
+        setTimeout(() => {
+          uiService.initialize();
+          console.log('All services initialized'); // Debug
+        }, 100);
+
         // Setup global event listeners
         const handleKeyDown = (e: KeyboardEvent) => {
           if (e.key === 'Escape') {
@@ -43,14 +51,12 @@ function App() {
           }
         });
 
-        console.log('App initialized successfully'); // Debug
-
       } catch (error) {
         console.error('Error initializing app:', error);
       }
     };
 
-    initializeApp();
+    initializeServices();
 
     // Cleanup
     return () => {
@@ -67,10 +73,10 @@ function App() {
   }, []);
 
   return (
-    <>
+    <BrowserRouter>
       <Layout />
       <Chatbot />
-    </>
+    </BrowserRouter>
   );
 }
 

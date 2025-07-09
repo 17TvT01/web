@@ -1,7 +1,12 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { uiService } from '../../services/uiService';
 import { cartService } from '../../services/cartService';
-import '../../assets/css/components/header.css';
+import { authService } from '../../services/authService';
+import { User } from '../../types/auth';
+import '../../assets/Css/components/header.css';
+import '../../assets/Css/components/auth-header.css';
+import '../../assets/Css/auth.css';
 
 interface Props {
     onSearch?: (query: string) => void;
@@ -10,8 +15,14 @@ interface Props {
 export const Header = ({ onSearch }: Props) => {
     const [cartCount, setCartCount] = useState(0);
     const [searchValue, setSearchValue] = useState('');
+    const [currentUser, setCurrentUser] = useState<User | null>(null);
+    const [showUserDropdown, setShowUserDropdown] = useState(false);
 
     useEffect(() => {
+        // Initialize user state
+        const user = authService.getCurrentUser();
+        setCurrentUser(user);
+
         // Initial cart count
         setCartCount(cartService.getTotalItems());
 
@@ -20,41 +31,38 @@ export const Header = ({ onSearch }: Props) => {
             setCartCount(e.detail.totalItems);
         };
 
+        // Update user state when auth changes
+        const handleAuthUpdate = (e: CustomEvent) => {
+            setCurrentUser(e.detail.user);
+        };
+
         window.addEventListener('cart:updated', handleCartUpdate as EventListener);
+        window.addEventListener('auth:updated', handleAuthUpdate as EventListener);
 
         return () => {
             window.removeEventListener('cart:updated', handleCartUpdate as EventListener);
+            window.removeEventListener('auth:updated', handleAuthUpdate as EventListener);
         };
     }, []);
 
     const handleShowLoginForm = () => {
-        uiService.hideAllOverlays();
-        // Add a small delay to ensure overlays are cleared
-        setTimeout(() => {
-            const loginForm = document.querySelector('.login-form');
-            if (loginForm) {
-                loginForm.classList.add('active');
-                const overlay = document.querySelector('.dropdown-overlay');
-                if (overlay) {
-                    overlay.classList.add('active');
-                }
-            }
-        }, 100);
+        console.log('Showing login form...'); // Debug
+        uiService.showForm('login');
     };
 
     const handleShowRegisterForm = () => {
-        uiService.hideAllOverlays();
-        // Add a small delay to ensure overlays are cleared
-        setTimeout(() => {
-            const registerForm = document.querySelector('.register-form');
-            if (registerForm) {
-                registerForm.classList.add('active');
-                const overlay = document.querySelector('.dropdown-overlay');
-                if (overlay) {
-                    overlay.classList.add('active');
-                }
-            }
-        }, 100);
+        console.log('Showing register form...'); // Debug
+        uiService.showForm('register');
+    };
+
+    const handleLogout = () => {
+        authService.logout();
+        setCurrentUser(null);
+        setShowUserDropdown(false);
+    };
+
+    const toggleUserDropdown = () => {
+        setShowUserDropdown(!showUserDropdown);
     };
 
     const handleCartClick = () => {
@@ -110,31 +118,68 @@ export const Header = ({ onSearch }: Props) => {
                     )}
                 </button>
 
-                <div className="auth-buttons">
-                    <button 
-                        type="button"
-                        className="auth-btn login-btn"
-                        onClick={handleShowLoginForm}
-                    >
-                        <i className="fas fa-sign-in-alt"></i>
-                        Đăng nhập
-                    </button>
-                    <button 
-                        type="button"
-                        className="auth-btn register-btn"
-                        onClick={handleShowRegisterForm}
-                    >
-                        <i className="fas fa-user-plus"></i>
-                        Đăng ký
-                    </button>
-                </div>
-
-                <div className="user-icon" style={{ display: 'none' }}>
-                    <div className="user-avatar">
-                        <img src="/images/default-avatar.png" alt="User avatar" />
+                {!currentUser ? (
+                    <div className="auth-buttons">
+                        <button 
+                            type="button"
+                            className="auth-btn login-btn"
+                            onClick={handleShowLoginForm}
+                        >
+                            <i className="fas fa-sign-in-alt"></i>
+                            Đăng nhập
+                        </button>
+                        <button 
+                            type="button"
+                            className="auth-btn register-btn"
+                            onClick={handleShowRegisterForm}
+                        >
+                            <i className="fas fa-user-plus"></i>
+                            Đăng ký
+                        </button>
                     </div>
-                    <span className="user-name">User</span>
-                </div>
+                ) : (
+                    <div 
+                        className={`user-menu ${showUserDropdown ? 'active' : ''}`}
+                        onClick={toggleUserDropdown}
+                    >
+                        <div className="user-info">
+                            <div className="user-avatar">
+                                <img 
+                                    src={currentUser.avatar || "/images/default-avatar.svg"} 
+                                    alt={`${currentUser.name}'s avatar`} 
+                                />
+                            </div>
+                            <span className="user-name">{currentUser.name}</span>
+                        </div>
+                        {showUserDropdown && (
+                            <div className="user-dropdown">
+                                <Link 
+                                    to="/profile" 
+                                    className="dropdown-item"
+                                    onClick={() => setShowUserDropdown(false)}
+                                >
+                                    <i className="fas fa-user"></i>
+                                    Tài khoản
+                                </Link>
+                                <Link 
+                                    to="/orders" 
+                                    className="dropdown-item"
+                                    onClick={() => setShowUserDropdown(false)}
+                                >
+                                    <i className="fas fa-shopping-bag"></i>
+                                    Đơn hàng
+                                </Link>
+                                <button 
+                                    className="dropdown-item logout-btn"
+                                    onClick={handleLogout}
+                                >
+                                    <i className="fas fa-sign-out-alt"></i>
+                                    Đăng xuất
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                )}
             </div>
         </header>
     );

@@ -29,9 +29,11 @@ class Database:
             # Create cursor
             self.cursor = self.conn.cursor()
             
-            # Create database if not exists
-            self.cursor.execute("CREATE DATABASE IF NOT EXISTS web_store")
+            # Drop and recreate database
+            # self.cursor.execute("DROP DATABASE IF EXISTS web_store")
+            # self.cursor.execute("CREATE DATABASE web_store")
             self.cursor.execute("USE web_store")
+            print("Database connection established and using existing database")
             
             # Create tables
             self.create_tables()
@@ -83,6 +85,32 @@ class Database:
                     FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
                 )
             ''')
+
+            # Check if users table exists and has correct structure
+            self.cursor.execute("SHOW TABLES LIKE 'users'")
+            if self.cursor.fetchone():
+                self.cursor.execute("DESCRIBE users")
+                columns = [row[0] for row in self.cursor.fetchall()]
+                if 'name' not in columns or 'email' not in columns or 'password_hash' not in columns:
+                    print("Dropping users table due to missing required columns")
+                    self.cursor.execute("DROP TABLE users")
+                    self.conn.commit()
+
+            # Create users table for authentication
+            self.cursor.execute('''
+                CREATE TABLE IF NOT EXISTS users (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    name VARCHAR(255) NOT NULL,
+                    email VARCHAR(255) NOT NULL UNIQUE,
+                    password_hash VARCHAR(255) NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+            
+            # Verify table structure
+            self.cursor.execute("DESCRIBE users")
+            columns = [row[0] for row in self.cursor.fetchall()]
+            print("Users table columns:", columns)
             
             self.conn.commit()
             print("Tables created successfully")
