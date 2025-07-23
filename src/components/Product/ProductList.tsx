@@ -2,8 +2,10 @@ import { useEffect, useState } from 'react';
 import { productService } from '../../services/productService';
 import { cartService } from '../../services/cartService';
 import { notificationService } from '../../services/notificationService';
-import { MainCategory, Product, FilterState } from '../../types';
+import { MainCategory, Product, FilterState, SelectedOption } from '../../types';
+import { ProductDetailModal } from './ProductDetailModal';
 import '../../assets/css/components/product-grid.css';
+
 
 interface Props {
     category: MainCategory;
@@ -15,6 +17,9 @@ interface Props {
 export const ProductList = ({ category, filters, sortBy, searchQuery }: Props) => {
     const [products, setProducts] = useState<Product[]>([]);
     const [loading, setLoading] = useState(true);
+    const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+
 
     useEffect(() => {
         const fetchProducts = async () => {
@@ -94,15 +99,39 @@ export const ProductList = ({ category, filters, sortBy, searchQuery }: Props) =
         fetchProducts();
     }, [category, filters, sortBy, searchQuery]);
 
-    const handleAddToCart = async (product: Product) => {
+    const handleProductClick = (product: Product) => {
+        setSelectedProduct(product);
+        setIsModalOpen(true);
+    };
+
+    const handleCloseModal = () => {
+        setIsModalOpen(false);
+        setSelectedProduct(null);
+    };
+
+    const handleAddToCartWithOptions = async (product: Product, selectedOptions: SelectedOption[], quantity: number) => {
         try {
-            await cartService.addItem(product);
+            console.log('Adding to cart with quantity:', quantity);
+            // Tạo uniqueId từ product.id và selectedOptions
+            const optionsString = selectedOptions.map(opt => `${opt.name}:${opt.value}`).join('|');
+            const uniqueId = `${product.id}_${optionsString || 'default'}`;
+            
+            const cartItem = {
+                ...product,
+                uniqueId,
+                selectedOptions,
+                quantity
+            };
+            console.log('Cart item being added:', cartItem);
+            await cartService.addItem(cartItem);
             notificationService.show('Đã thêm vào giỏ hàng', { type: 'success' });
         } catch (error) {
             console.error('Error adding to cart:', error);
             notificationService.show('Không thể thêm vào giỏ hàng', { type: 'error' });
         }
     };
+
+
 
     if (loading) {
         return (
@@ -123,62 +152,73 @@ export const ProductList = ({ category, filters, sortBy, searchQuery }: Props) =
     }
 
     return (
-        <div className="products-grid">
-            {products.map(product => (
-                <div key={product.id} className="product-card">
-                    <div className="product-image">
-                        <img src={product.image} alt={product.name} />
-                        {product.onSale && <span className="sale-badge">Sale</span>}
-                        {product.isNew && <span className="new-badge">New</span>}
-                    </div>
-                    <div className="product-info">
-                        <h3>{product.name}</h3>
-                        {product.filters && (
-                            <div className="product-tags">
-                                {Object.entries(product.filters).map(([type, values]) => (
-                                    Array.isArray(values) ? values.map(value => (
-                                        <span key={`${type}-${value}`} className="tag">
-                                            {value}
-                                        </span>
-                                    )) : null
-                                ))}
-                            </div>
-                        )}
-                        <div className="product-price">
-                            {product.onSale ? (
-                                <>
-                                    <span className="original-price">
-                                        {product.price.toLocaleString()}₫
-                                    </span>
-                                    <span className="sale-price">
-                                        {product.salePrice?.toLocaleString()}₫
-                                    </span>
-                                </>
-                            ) : (
-                                <span className="sale-price">
-                                    {product.price.toLocaleString()}₫
-                                </span>
-                            )}
+        <>
+            <div className="products-grid">
+                {products.map(product => (
+                    <div 
+                        key={product.id} 
+                        className="product-card"
+                        onClick={() => product.inStock && handleProductClick(product)}
+                        style={{ cursor: product.inStock ? 'pointer' : 'not-allowed' }}
+                    >
+                        <div className="product-image">
+                            <img src={product.image} alt={product.name} />
+                            {product.onSale && <span className="sale-badge">Sale</span>}
+                            {product.isNew && <span className="new-badge">New</span>}
                         </div>
-                        <div className="product-actions">
-                            <button 
-                                className="add-to-cart"
-                                disabled={!product.inStock}
-                                onClick={() => product.inStock && handleAddToCart(product)}
-                            >
-                                {product.inStock ? (
+                        <div className="product-info">
+                            <h3>{product.name}</h3>
+                            {product.filters && (
+                                <div className="product-tags">
+                                    {Object.entries(product.filters).map(([type, values]) => (
+                                        Array.isArray(values) ? values.map(value => (
+                                            <span key={`${type}-${value}`} className="tag">
+                                                {value}
+                                            </span>
+                                        )) : null
+                                    ))}
+                                </div>
+                            )}
+                            <div className="product-price">
+                                {product.onSale ? (
                                     <>
-                                        <i className="fas fa-shopping-cart"></i>
-                                        Thêm vào giỏ
+                                        <span className="original-price">
+                                            {product.price.toLocaleString()}₫
+                                        </span>
+                                        <span className="sale-price">
+                                            {product.salePrice?.toLocaleString()}₫
+                                        </span>
                                     </>
                                 ) : (
-                                    'Hết hàng'
+                                    <span className="sale-price">
+                                        {product.price.toLocaleString()}₫
+                                    </span>
                                 )}
-                            </button>
+                            </div>
+                            <div className="product-actions">
+                                <button 
+                                    className="add-to-cart"
+                                    disabled={!product.inStock}
+                                    onClick={(e) => {
+                                        e.stopPropagation(); // Ngăn sự kiện click lan ra ngoài
+                                        product.inStock && handleProductClick(product);
+                                    }}
+                                >
+                                    {product.inStock ? 'Xem chi tiết' : 'Hết hàng'}
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            ))}
-        </div>
+                ))}
+            </div>
+
+            <ProductDetailModal
+                product={selectedProduct}
+                isOpen={isModalOpen}
+                onClose={handleCloseModal}
+                onAddToCart={handleAddToCartWithOptions}
+            />
+        </>
     );
+
 };

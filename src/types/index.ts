@@ -68,6 +68,25 @@ export const DRINK_FILTERS = {
     ]
 };
 
+// Types for Product Customization Options
+export interface ProductOptionItem {
+    name: string;
+    price?: number; // Optional price for the item (e.g., extra for topping)
+}
+
+export interface ProductOption {
+    name: string; // e.g., "Mức đường" or "Topping"
+    type: 'radio' | 'checkbox';
+    items: (string | ProductOptionItem)[];
+}
+
+// Represents a choice made by the user for a single option group
+export interface SelectedOption {
+    name: string; // Name of the option group, e.g., "Mức đường"
+    value: string; // The chosen value, e.g., "70%"
+}
+
+
 // Product Interface
 export interface Product {
     id: number;
@@ -77,6 +96,7 @@ export interface Product {
     category: MainCategory;
     subCategory?: string;
     filters?: CakeFilters | FoodFilters | DrinkFilters;
+    options?: ProductOption[];
     description?: string;
     onSale?: boolean;
     salePrice?: number;
@@ -87,7 +107,12 @@ export interface Product {
 
 export interface CartItem extends Product {
     quantity: number;
+    // A unique identifier for the cart item, typically combining the product ID and selected options.
+    // This allows having the same product with different options as separate items in the cart.
+    uniqueId: string; 
+    selectedOptions?: SelectedOption[];
 }
+
 
 // Filter Types
 export interface CategoryFilter {

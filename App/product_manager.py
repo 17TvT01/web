@@ -1,3 +1,4 @@
+import json
 from database import Database
 from mysql.connector import Error
 import os
@@ -24,8 +25,40 @@ class ProductManager:
         if description:
             keywords = [word.strip() for word in description.split() if len(word.strip()) > 2]
             attributes['keywords'] = keywords[:5]  # Giới hạn 5 từ khóa
+
+        # TODO: Nâng cao: tích hợp AI hoặc thuật toán để tạo key lọc tự động
+        # Ví dụ: gọi API AI để phân tích name và description, trích xuất các từ khóa quan trọng
+        # Kết quả trả về có thể là một danh sách từ khóa hoặc các nhãn (tags) phù hợp
+
+        # Giả lập kết quả AI (ví dụ tạm thời)
+        ai_generated_keys = self._ai_generate_filter_keys(name, description)
+        if ai_generated_keys:
+            if 'ai_keys' not in attributes:
+                attributes['ai_keys'] = []
+            for key in ai_generated_keys:
+                if key not in attributes['ai_keys']:
+                    attributes['ai_keys'].append(key)
             
         return attributes
+
+    def _ai_generate_filter_keys(self, name, description):
+        # Placeholder cho hàm AI tạo key lọc tự động
+        # Hiện tại chỉ trả về một số từ khóa mẫu dựa trên nội dung
+        keys = []
+        text = f"{name} {description}".lower() if description else name.lower()
+        if 'trà sữa' in text:
+            keys.append('trà sữa')
+        if 'kem' in text:
+            keys.append('kem')
+        if 'bánh' in text:
+            keys.append('bánh')
+        if 'đá' in text:
+            keys.append('đá')
+        if 'ngọt' in text:
+            keys.append('ngọt')
+        # Có thể thêm nhiều quy tắc hoặc gọi API AI thực tế ở đây
+        return keys
+
 
     def add_product(self, name, price, category, quantity=0, description=None, image_url=None, attributes=None):
         try:
@@ -199,15 +232,27 @@ class ProductManager:
             columns = [desc[0] for desc in self.db.cursor.description]
             product = dict(zip(columns, result))
             
-            # Parse attributes
-            if product['attributes']:
-                attrs = {}
-                for attr in product['attributes'].split('|'):
-                    attr_type, attr_value = attr.split(':')
-                    if attr_type not in attrs:
-                        attrs[attr_type] = []
-                    attrs[attr_type].append(attr_value)
-                product['attributes'] = attrs
+            # Parse attributes into filters and options
+            raw_attributes = product.pop('attributes', None)
+            filters = {}
+            product['options'] = []
+
+            if raw_attributes:
+                for attr in raw_attributes.split('|'):
+                    try:
+                        attr_type, attr_value = attr.split(':', 1)
+                        if attr_type == 'options':
+                            product['options'] = json.loads(attr_value)
+                        else:
+                            if attr_type not in filters:
+                                filters[attr_type] = []
+                            filters[attr_type].append(attr_value)
+                    except ValueError:
+                        print(f"Warning: Malformed attribute string '{attr}' for product {product['id']}")
+                    except json.JSONDecodeError:
+                        print(f"Warning: Could not decode options JSON for product {product['id']}")
+            
+            product['filters'] = filters
             
             return product
             
@@ -249,16 +294,28 @@ class ProductManager:
             for result in results:
                 product = dict(zip(columns, result))
                 
-                # Parse attributes
-                if product['attributes']:
-                    attrs = {}
-                    for attr in product['attributes'].split('|'):
-                        attr_type, attr_value = attr.split(':')
-                        if attr_type not in attrs:
-                            attrs[attr_type] = []
-                        attrs[attr_type].append(attr_value)
-                    product['attributes'] = attrs
-                    
+                # Parse attributes into filters and options
+                raw_attributes = product.pop('attributes', None)
+                filters = {}
+                product['options'] = []
+
+                if raw_attributes:
+                    for attr in raw_attributes.split('|'):
+                        try:
+                            attr_type, attr_value = attr.split(':', 1)
+                            if attr_type == 'options':
+                                # Assuming options are stored as a JSON string
+                                product['options'] = json.loads(attr_value)
+                            else:
+                                if attr_type not in filters:
+                                    filters[attr_type] = []
+                                filters[attr_type].append(attr_value)
+                        except ValueError:
+                            print(f"Warning: Malformed attribute string '{attr}' for product {product['id']}")
+                        except json.JSONDecodeError:
+                             print(f"Warning: Could not decode options JSON for product {product['id']}")
+
+                product['filters'] = filters
                 products.append(product)
                 
             return products
@@ -325,16 +382,28 @@ class ProductManager:
             for result in results:
                 product = dict(zip(columns, result))
                 
-                # Parse attributes
-                if product['attributes']:
-                    attrs = {}
-                    for attr in product['attributes'].split('|'):
-                        attr_type, attr_value = attr.split(':')
-                        if attr_type not in attrs:
-                            attrs[attr_type] = []
-                        attrs[attr_type].append(attr_value)
-                    product['attributes'] = attrs
-                    
+                # Parse attributes into filters and options
+                raw_attributes = product.pop('attributes', None)
+                filters = {}
+                product['options'] = []
+
+                if raw_attributes:
+                    for attr in raw_attributes.split('|'):
+                        try:
+                            attr_type, attr_value = attr.split(':', 1)
+                            if attr_type == 'options':
+                                # Assuming options are stored as a JSON string
+                                product['options'] = json.loads(attr_value)
+                            else:
+                                if attr_type not in filters:
+                                    filters[attr_type] = []
+                                filters[attr_type].append(attr_value)
+                        except ValueError:
+                            print(f"Warning: Malformed attribute string '{attr}' for product {product['id']}")
+                        except json.JSONDecodeError:
+                             print(f"Warning: Could not decode options JSON for product {product['id']}")
+
+                product['filters'] = filters
                 products.append(product)
                 
             return products
