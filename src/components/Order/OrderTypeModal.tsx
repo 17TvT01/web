@@ -1,67 +1,61 @@
-import { useState } from 'react';
-import { uiService } from '../../services/uiService';
+import React, { useState } from 'react';
+import { DineInModal } from './DineInModal';
+import '../../assets/css/components/modal.css';
 
-type OrderType = 'dine-in' | 'takeaway';
+interface OrderTypeModalProps {
+    isOpen: boolean;
+    onClose: () => void;
+    onSelectOrderType: (type: 'dine-in' | 'takeaway', tableNumber?: string, needsAssistance?: boolean) => void;
+}
 
-export const OrderTypeModal = () => {
-    const [selectedType, setSelectedType] = useState<OrderType>('dine-in');
+export const OrderTypeModal: React.FC<OrderTypeModalProps> = ({ isOpen, onClose, onSelectOrderType }) => {
+    const [showDineInModal, setShowDineInModal] = useState(false);
 
-    const handleClose = () => {
-        uiService.hideForm('orderType');
+    const handleDineInSubmit = (tableNumber: string, needsAssistance: boolean) => {
+        onSelectOrderType('dine-in', tableNumber, needsAssistance);
+        setShowDineInModal(false);
+        onClose();
     };
 
-    const handleConfirm = () => {
-        // Lưu lựa chọn và chuyển sang modal thanh toán
-        localStorage.setItem('orderType', selectedType);
-        handleClose();
-        uiService.showForm('paymentOptions');
-    };
+    if (!isOpen) {
+        return null;
+    }
 
     return (
-        <div className="form-overlay order-type-form">
-            <div className="modal">
-                <div className="modal-header">
-                    <h2>Chọn hình thức</h2>
-                    <button className="modal-close" onClick={handleClose}>
-                        <i className="fas fa-times"></i>
-                    </button>
-                </div>
-                
+        <>
+            <div className="modal-overlay">
                 <div className="modal-content">
+                    <h2>Chọn hình thức dùng bữa</h2>
                     <div className="order-type-options">
                         <button 
-                            className={`order-type-btn ${selectedType === 'dine-in' ? 'active' : ''}`}
-                            onClick={() => setSelectedType('dine-in')}
+                            className="order-type-btn"
+                            onClick={() => setShowDineInModal(true)}
                         >
                             <i className="fas fa-utensils"></i>
                             <span>Dùng tại quán</span>
-                            {selectedType === 'dine-in' && (
-                                <i className="fas fa-check check-icon"></i>
-                            )}
                         </button>
-
                         <button 
-                            className={`order-type-btn ${selectedType === 'takeaway' ? 'active' : ''}`}
-                            onClick={() => setSelectedType('takeaway')}
+                            className="order-type-btn"
+                            onClick={() => {
+                                onSelectOrderType('takeaway');
+                                onClose();
+                            }}
                         >
                             <i className="fas fa-shopping-bag"></i>
-                            <span>Mang về</span>
-                            {selectedType === 'takeaway' && (
-                                <i className="fas fa-check check-icon"></i>
-                            )}
+                            <span>Mang đi</span>
                         </button>
                     </div>
-                </div>
-
-                <div className="modal-footer">
-                    <button className="cancel-btn" onClick={handleClose}>
-                        Hủy
-                    </button>
-                    <button className="confirm-btn" onClick={handleConfirm}>
-                        Tiếp tục
-                    </button>
+                    <div className="modal-actions">
+                        <button onClick={onClose} className="btn-secondary">Hủy</button>
+                    </div>
                 </div>
             </div>
-        </div>
+
+            <DineInModal
+                isOpen={showDineInModal}
+                onClose={() => setShowDineInModal(false)}
+                onSubmit={handleDineInSubmit}
+            />
+        </>
     );
 };

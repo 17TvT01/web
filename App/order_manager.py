@@ -23,25 +23,63 @@ class OrderManager:
         """
         try:
             self.ensure_connection()
+            
+            # Validate input
+            if not customer_name or not customer_name.strip():
+                raise ValueError("Tên khách hàng không được để trống")
+            
+            if not items or len(items) == 0:
+                raise ValueError("Đơn hàng phải có ít nhất một sản phẩm")
+            
+            if total_price is None or total_price < 0:
+                raise ValueError("Tổng giá không hợp lệ")
+            
+            # Validate items
+            for item in items:
+                if not isinstance(item, dict):
+                    raise ValueError("Mỗi item phải là dictionary")
+                if 'product_id' not in item or 'quantity' not in item:
+                    raise ValueError("Mỗi item phải có product_id và quantity")
+                if not isinstance(item['product_id'], int) or item['product_id'] <= 0:
+                    raise ValueError("product_id phải là số nguyên dương")
+                if not isinstance(item['quantity'], int) or item['quantity'] <= 0:
+                    raise ValueError("quantity phải là số nguyên dương")
+            
+            # Check if products exist
+            for item in items:
+                self.db.cursor.execute("SELECT id FROM products WHERE id = %s", (item['product_id'],))
+                if not self.db.cursor.fetchone():
+                    raise ValueError(f"Sản phẩm với ID {item['product_id']} không tồn tại")
+
             next_id = self.db.get_next_id(table='orders')
             if next_id is None:
-                raise Exception("Could not generate order ID")
+                raise Exception("Không thể tạo ID đơn hàng")
 
             sql = '''INSERT INTO orders (id, customer_name, total_price, status) 
                      VALUES (%s, %s, %s, %s)'''
-            values = (next_id, customer_name, total_price, status)
+            values = (next_id, customer_name.strip(), float(total_price), status)
             self.db.cursor.execute(sql, values)
 
             # Insert order items
             item_sql = '''INSERT INTO order_items (order_id, product_id, quantity) VALUES (%s, %s, %s)'''
-            item_values = [(next_id, item['product_id'], item['quantity']) for item in items]
+            item_values = [(next_id, int(item['product_id']), int(item['quantity'])) for item in items]
             self.db.cursor.executemany(item_sql, item_values)
 
             self.db.conn.commit()
-            print(f"Order added successfully with ID: {next_id}")
+            print(f"Đơn hàng được tạo thành công với ID: {next_id}")
             return next_id
+        except ValueError as e:
+            print(f"Lỗi validation: {e}")
+            if self.db.conn:
+                self.db.conn.rollback()
+            return None
         except Error as e:
-            print(f"Error adding order: {e}")
+            print(f"Lỗi database khi thêm đơn hàng: {e}")
+            if self.db.conn:
+                self.db.conn.rollback()
+            return None
+        except Exception as e:
+            print(f"Lỗi không xác định: {e}")
             if self.db.conn:
                 self.db.conn.rollback()
             return None

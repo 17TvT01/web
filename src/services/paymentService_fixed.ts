@@ -21,29 +21,56 @@ interface PaymentDetails {
 class PaymentService {
     private async createOrderInDatabase(details: PaymentDetails) {
         try {
-            // Create order data for backend
+            const cartItems = cartService.getItems();
+            
+            if (!cartItems || cartItems.length === 0) {
+                throw new Error('Giỏ hàng trống');
+            }
+
+            // Validate cart items
+            const validItems = cartItems.filter(item => 
+                item.id && item.quantity > 0 && item.price > 0
+            );
+
+            if (validItems.length === 0) {
+                throw new Error('Không có sản phẩm hợp lệ trong giỏ hàng');
+            }
+
+            // Create order data for backend - ensure proper type conversion
             const orderData = {
-                customer_name: details.address?.fullName || 'Customer',
-                items: cartService.getItems().map(item => ({
-                    product_id: item.id,
-                    quantity: item.quantity
+                customer_name: details.address?.fullName || 'Khách hàng',
+                items: validItems.map(item => ({
+                    product_id: parseInt(String(item.id), 10),
+                    quantity: parseInt(String(item.quantity), 10)
                 })),
-                total_price: cartService.getTotalPrice(),
+                total_price: parseFloat(String(cartService.getTotalPrice())),
                 status: 'pending'
             };
 
+            console.log('Creating order with data:', orderData);
+
             // Call backend API to create order
-            const response = await axios.post(`${API_BASE}/orders`, orderData);
+            const response = await axios.post(`${API_BASE}/orders`, orderData, {
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
             
-            if (response.data.order_id) {
+            console.log('Order creation response:', response.data);
+            
+            if (response.data && response.data.order_id) {
                 return response.data.order_id;
             } else {
-                throw new Error('Failed to create order');
+                throw new Error('Không nhận được order_id từ server');
             }
 
-        } catch (error) {
-            console.error('API Error:', error);
-            throw error;
+        } catch (error: any) {
+            console.error('Order creation error:', error);
+            if (error.response) {
+                console.error('Server response:', error.response.data);
+                console.error('Status:', error.response.status);
+            }
+            throw new Error(`Lỗi tạo đơn hàng: ${error.message || 'Lỗi không xác định'}`);
         }
     }
 

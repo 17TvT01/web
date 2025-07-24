@@ -85,6 +85,29 @@ class Database:
                     FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
                 )
             ''')
+            
+            # Create orders table
+            self.cursor.execute('''
+                CREATE TABLE IF NOT EXISTS orders (
+                    id INT PRIMARY KEY,
+                    customer_name VARCHAR(255) NOT NULL,
+                    total_price DECIMAL(10, 2) NOT NULL,
+                    status ENUM('pending', 'completed', 'cancelled') DEFAULT 'pending',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+            
+            # Create order_items table
+            self.cursor.execute('''
+                CREATE TABLE IF NOT EXISTS order_items (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    order_id INT,
+                    product_id INT,
+                    quantity INT,
+                    FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
+                    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+                )
+            ''')
 
             # Check if users table exists and has correct structure
             self.cursor.execute("SHOW TABLES LIKE 'users'")
@@ -119,14 +142,14 @@ class Database:
             print(f"Error creating tables: {e}")
             raise
 
-    def get_next_id(self):
+    def get_next_id(self, table='products'):
         try:
-            # Get list of all IDs
-            self.cursor.execute("SELECT id FROM products ORDER BY id")
+            # Get list of all IDs from specified table
+            self.cursor.execute(f"SELECT id FROM {table} ORDER BY id")
             ids = [row[0] for row in self.cursor.fetchall()]
             
             if not ids:
-                return 1  # First product
+                return 1  # First record
             
             # Find first gap in sequence
             expected_id = 1
@@ -139,7 +162,7 @@ class Database:
             return expected_id
             
         except Error as e:
-            print(f"Error getting next ID: {e}")
+            print(f"Error getting next ID for {table}: {e}")
             return None
 
     def reconnect_if_needed(self):
