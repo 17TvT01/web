@@ -24,6 +24,7 @@ class StoreGUI:
         self.selected_image_path = None
         self.current_product_id = None  # For editing
         self.editing_mode = False
+        self.filter_vars = {} # Để lưu trạng thái của các checkbox lọc
 
         # Main container with tab control
         self.tab_control = ttk.Notebook(root)
@@ -46,7 +47,7 @@ class StoreGUI:
         self._setup_order_ui()
 
         # Load initial data
-        self.load_products()
+        self.on_category_change() # Tải bộ lọc và sản phẩm ban đầu
         self.load_orders()
 
     # Existing product management UI setup methods, but adjusted to use self.product_tab as parent
@@ -72,8 +73,18 @@ class StoreGUI:
                 text=text,
                 value=value,
                 variable=self.category_var,
-                command=self.load_products
+                command=self.on_category_change
             ).pack(pady=2)
+
+        # Thêm đường phân cách
+        ttk.Separator(self.left_panel, orient='horizontal').pack(fill='x', pady=10, padx=5)
+
+        # Frame cho các bộ lọc chi tiết (sẽ được tạo động)
+        self.dynamic_filter_frame = ttk.Frame(self.left_panel)
+        self.dynamic_filter_frame.pack(fill=tk.X, padx=5, pady=5, anchor='n')
+
+        # Thêm đường phân cách
+        ttk.Separator(self.left_panel, orient='horizontal').pack(fill='x', pady=10, padx=5)
 
         # Search với style mới
         search_frame = ttk.Frame(self.left_panel)
@@ -86,7 +97,7 @@ class StoreGUI:
         ).pack(anchor=tk.W, pady=(0, 5))
         
         self.search_var = tk.StringVar()
-        self.search_var.trace('w', lambda *args: self.load_products())
+        self.search_var.trace('w', lambda *args: self.load_products(update_filters=False))
         search_entry = ttk.Entry(
             search_frame,
             textvariable=self.search_var,
@@ -437,6 +448,37 @@ class StoreGUI:
         self.submit_btn.configure(text="Thêm Sản Phẩm")
         self.cancel_btn.configure(state=tk.DISABLED)
 
+    def on_category_change(self):
+        """Được gọi khi người dùng thay đổi danh mục."""
+        self.load_products(update_filters=True)
+
+    def _update_dynamic_filters(self):
+        """Cập nhật các checkbox lọc chi tiết dựa trên danh mục đã chọn."""
+        # Xóa các bộ lọc cũ
+        for widget in self.dynamic_filter_frame.winfo_children():
+            widget.destroy()
+        self.filter_vars.clear()
+
+        category = self.category_var.get()
+        if category == "all":
+            return  # Không hiển thị bộ lọc chi tiết cho "Tất cả"
+
+        # Lấy tất cả sản phẩm của danh mục để tìm các thẻ lọc có sẵn
+        all_category_products = self.product_manager.get_all_products(category)
+        available_filters = set()
+        for p in all_category_products:
+            if 'ai_keys' in p.get('filters', {}):
+                available_filters.update(p['filters']['ai_keys'])
+        
+        # Tạo các checkbox mới nếu có
+        if available_filters:
+            ttk.Label(self.dynamic_filter_frame, text="Lọc Chi Tiết", font=('Helvetica', 10, 'bold')).pack(anchor=tk.W, pady=(0, 5))
+            for f in sorted(list(available_filters)):
+                var = tk.BooleanVar(value=False)
+                cb = ttk.Checkbutton(self.dynamic_filter_frame, text=f.capitalize(), variable=var, command=lambda: self.load_products(update_filters=False))
+                cb.pack(anchor=tk.W, padx=10)
+                self.filter_vars[f] = var
+
     def submit_product(self):
         try:
             # Get values from form
@@ -445,9 +487,6 @@ class StoreGUI:
             quantity_str = self.product_fields['quantity'].get().strip()
             description = self.product_fields['description'].get().strip()
             category_display = self.new_category_var.get()
-
-            # Extract attributes using ProductManager
-            attributes = self.product_manager._extract_attributes_from_text(name, description)
 
             # Validate inputs
             if not name:
@@ -504,7 +543,7 @@ class StoreGUI:
 
                 if success:
                     messagebox.showinfo("Thành công", "Đã cập nhật sản phẩm!")
-                    self.cancel_edit()
+                    self.cancel_edit() # Xóa form
                 else:
                     messagebox.showerror("Lỗi", "Không thể cập nhật sản phẩm!")
             else:
@@ -524,7 +563,8 @@ class StoreGUI:
                 else:
                     messagebox.showerror("Lỗi", "Không thể thêm sản phẩm!")
 
-            self.load_products()
+            # Tải lại sản phẩm và cập nhật bộ lọc
+            self.on_category_change()
 
         except Exception as e:
             messagebox.showerror("Lỗi", f"Đã xảy ra lỗi: {str(e)}")
@@ -570,21 +610,41 @@ class StoreGUI:
         self.form_preview.configure(image='')
         self.image_preview.configure(image='')
 
-    def load_products(self):
+    def load_products(self, update_filters=True):
+        """
+        Tải và hiển thị sản phẩm, có tùy chọn cập nhật bộ lọc chi tiết.
+        :param update_filters: True nếu cần tạo lại các checkbox lọc (khi đổi danh mục).
+        """
+        if update_filters:
+            self._update_dynamic_filters()
+
         # Clear current items
         for item in self.tree.get_children():
             self.tree.delete(item)
 
-        # Get products based on category and search
+        # Lấy sản phẩm dựa trên danh mục và tìm kiếm
         category = self.category_var.get()
         search = self.search_var.get()
 
         if search:
             products = self.product_manager.search_products(search)
+            # Nếu đang tìm kiếm, có thể lọc thêm theo danh mục hiện tại
+            if category != "all":
+                products = [p for p in products if p['category'] == category]
         elif category != "all":
             products = self.product_manager.get_all_products(category)
         else:
             products = self.product_manager.get_all_products()
+
+        # Lọc sản phẩm dựa trên các checkbox đã chọn
+        active_filters = {key for key, var in self.filter_vars.items() if var.get()}
+        if active_filters:
+            filtered_products = []
+            for product in products:
+                product_tags = set(product.get('filters', {}).get('ai_keys', []))
+                if active_filters.issubset(product_tags):
+                    filtered_products.append(product)
+            products = filtered_products
 
         # Category display mapping
         category_display = {
@@ -617,13 +677,13 @@ class StoreGUI:
         if messagebox.askyesno("Xác nhận", "Bạn có chắc muốn xóa sản phẩm này?"):
             for item in selected:
                 product_id = self.tree.item(item)['values'][0]
-                if self.product_manager.delete_product(product_id):
-                    self.tree.delete(item)
-                    # Clear image preview if deleted product was selected
-                    if product_id == self.current_product_id:
-                        self.image_preview.configure(image='')
-                else:
+                if not self.product_manager.delete_product(product_id):
                     messagebox.showerror("Lỗi", f"Không thể xóa sản phẩm {product_id}")
+            
+            # Tải lại danh sách sản phẩm và bộ lọc
+            self.on_category_change()
+            self.image_preview.configure(image='') # Xóa ảnh preview
+
 
     # Enhanced order management UI setup with features from order_gui.py
     def _setup_order_ui(self):

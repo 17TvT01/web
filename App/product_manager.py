@@ -14,7 +14,7 @@ class ProductManager:
     def ensure_connection(self):
         self.db.reconnect_if_needed()
 
-    def _extract_attributes_from_text(self, name, description):
+    def _extract_attributes_from_text(self, name, description, category):
         # Đơn giản hóa việc trích xuất thuộc tính
         attributes = {
             'name': [name],
@@ -31,7 +31,7 @@ class ProductManager:
         # Kết quả trả về có thể là một danh sách từ khóa hoặc các nhãn (tags) phù hợp
 
         # Giả lập kết quả AI (ví dụ tạm thời)
-        ai_generated_keys = self._ai_generate_filter_keys(name, description)
+        ai_generated_keys = self._ai_generate_filter_keys(name, description, category)
         if ai_generated_keys:
             if 'ai_keys' not in attributes:
                 attributes['ai_keys'] = []
@@ -41,23 +41,68 @@ class ProductManager:
             
         return attributes
 
-    def _ai_generate_filter_keys(self, name, description):
-        # Placeholder cho hàm AI tạo key lọc tự động
-        # Hiện tại chỉ trả về một số từ khóa mẫu dựa trên nội dung
+    def _ai_generate_filter_keys(self, name, description, category):
+        """
+        Tạo các key lọc tự động dựa trên tên, mô tả và danh mục sản phẩm.
+        Đây là phiên bản nâng cao, tạo bộ lọc chi tiết cho từng loại sản phẩm.
+        """
         keys = []
         text = f"{name} {description}".lower() if description else name.lower()
-        if 'trà sữa' in text:
-            keys.append('trà sữa')
-        if 'kem' in text:
-            keys.append('kem')
-        if 'bánh' in text:
-            keys.append('bánh')
-        if 'đá' in text:
-            keys.append('đá')
-        if 'ngọt' in text:
-            keys.append('ngọt')
-        # Có thể thêm nhiều quy tắc hoặc gọi API AI thực tế ở đây
-        return keys
+
+        # Bộ lọc chung cho tất cả sản phẩm
+        common_filters = {
+            'khuyến mãi': ['khuyến mãi', 'giảm giá', 'sale'],
+            'mới': ['mới', 'new'],
+            'bán chạy': ['bán chạy', 'best seller', 'hot']
+        }
+        for key, keywords in common_filters.items():
+            if any(keyword in text for keyword in keywords):
+                keys.append(key)
+
+        # Bộ lọc riêng cho từng danh mục
+        if category == 'cake':
+            cake_filters = {
+                'socola': ['socola', 'chocolate'],
+                'vani': ['vani', 'vanilla'],
+                'dâu': ['dâu', 'strawberry'],
+                'matcha': ['matcha', 'trà xanh'],
+                'tiramisu': ['tiramisu'],
+                'cupcake': ['cupcake'],
+                'sinh nhật': ['sinh nhật', 'birthday'],
+                'ít ngọt': ['ít ngọt', 'less sugar'],
+            }
+            for key, keywords in cake_filters.items():
+                if any(keyword in text for keyword in keywords):
+                    keys.append(key)
+
+        elif category == 'drink':
+            drink_filters = {
+                'trà sữa': ['trà sữa', 'milk tea'],
+                'cà phê': ['cà phê', 'coffee'],
+                'nước ép': ['nước ép', 'juice'],
+                'sinh tố': ['sinh tố', 'smoothie'],
+                'trân châu': ['trân châu', 'pearl', 'bubble'],
+                'đá xay': ['đá xay', 'ice blended'],
+                'ít đá': ['ít đá'],
+                'ít ngọt': ['ít ngọt'],
+            }
+            for key, keywords in drink_filters.items():
+                if any(keyword in text for keyword in keywords):
+                    keys.append(key)
+
+        elif category == 'food':
+            food_filters = {
+                'món chính': ['cơm', 'phở', 'bún', 'mì'],
+                'ăn vặt': ['ăn vặt', 'snack', 'khoai tây chiên'],
+                'cay': ['cay', 'spicy'],
+                'không cay': ['không cay'],
+            }
+            for key, keywords in food_filters.items():
+                if any(keyword in text for keyword in keywords):
+                    keys.append(key)
+        
+        # Loại bỏ các key trùng lặp
+        return list(set(keys))
 
 
     def add_product(self, name, price, category, quantity=0, description=None, image_url=None, attributes=None):
@@ -77,7 +122,7 @@ class ProductManager:
             self.db.cursor.execute(sql, values)
             
             # Extract attributes from name and description
-            extracted_attrs = self._extract_attributes_from_text(name, description)
+            extracted_attrs = self._extract_attributes_from_text(name, description, category)
 
             # Merge extracted attributes with manually provided attributes
             if attributes is None:
@@ -157,7 +202,8 @@ class ProductManager:
             if current_product:
                 updated_name = name if name is not None else current_product.get('name')
                 updated_description = description if description is not None else current_product.get('description')
-                extracted_attrs = self._extract_attributes_from_text(updated_name, updated_description)
+                updated_category = category if category is not None else current_product.get('category')
+                extracted_attrs = self._extract_attributes_from_text(updated_name, updated_description, updated_category)
             else:
                 extracted_attrs = {}
 
@@ -324,7 +370,7 @@ class ProductManager:
             print(f"Lỗi khi lấy sản phẩm từ database: {e}")
             return []
 
-    def delete_product(self, product_id):
+    def delete_product(self, product_id):        
         try:
             self.ensure_connection()
             
@@ -415,3 +461,79 @@ class ProductManager:
     def close(self):
         if self.db:
             self.db.close()
+
+    def get_all_products(self, category=None, filters=None):
+        try:
+            print("Đang kết nối database để lấy sản phẩm...")
+            self.ensure_connection()
+            print("Đã kết nối database thành công")
+            
+            # Base query
+            sql = '''SELECT p.*, GROUP_CONCAT(
+                        CONCAT(pa.attribute_type, ':', pa.attribute_value)
+                        SEPARATOR '|'
+                    ) as attributes
+                    FROM products p
+                    LEFT JOIN product_attributes pa ON p.id = pa.product_id'''
+            
+            conditions = []
+            params = []
+
+            if category:
+                conditions.append('p.category = %s')
+                params.append(category)
+
+            if filters:
+                for filter_type, filter_value in filters.items():
+                    conditions.append('pa.attribute_type = %s AND pa.attribute_value = %s')
+                    params.extend([filter_type, filter_value])
+            
+            if conditions:
+                sql += ' WHERE ' + ' AND '.join(conditions)
+            
+            sql += ' GROUP BY p.id ORDER BY p.id'  # Add ORDER BY to maintain ID sequence
+            
+            if params:
+                self.db.cursor.execute(sql, tuple(params))
+            else:
+                self.db.cursor.execute(sql)
+                
+            results = self.db.cursor.fetchall()
+            print(f"Đã tìm thấy {len(results)} sản phẩm")
+            
+            # Convert results to list of dictionaries
+            columns = [desc[0] for desc in self.db.cursor.description]
+            products = []
+            
+            for result in results:
+                product = dict(zip(columns, result))
+                
+                # Parse attributes into filters and options
+                raw_attributes = product.pop('attributes', None)
+                filters = {}
+                product['options'] = []
+
+                if raw_attributes:
+                    for attr in raw_attributes.split('|'):
+                        try:
+                            attr_type, attr_value = attr.split(':', 1)
+                            if attr_type == 'options':
+                                # Assuming options are stored as a JSON string
+                                product['options'] = json.loads(attr_value)
+                            else:
+                                if attr_type not in filters:
+                                    filters[attr_type] = []
+                                filters[attr_type].append(attr_value)
+                        except ValueError:
+                            print(f"Warning: Malformed attribute string '{attr}' for product {product['id']}")
+                        except json.JSONDecodeError:
+                             print(f"Warning: Could not decode options JSON for product {product['id']}")
+
+                product['filters'] = filters
+                products.append(product)
+                
+            return products
+            
+        except Error as e:
+            print(f"Lỗi khi lấy sản phẩm từ database: {e}")
+            return []
