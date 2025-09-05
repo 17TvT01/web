@@ -4,6 +4,9 @@ from order_manager import OrderManager
 from flask_cors import CORS
 import mysql.connector
 import hashlib
+import json
+from decimal import Decimal
+from datetime import datetime
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for frontend requests
@@ -65,11 +68,39 @@ def login():
 @app.route('/products', methods=['GET'])
 def get_products():
     products = product_manager.get_all_products()
-    # Convert products to JSON serializable format
+
+    # Normalize filters/attributes for frontend consumption and ensure JSON-safe types
     for p in products:
-        # Convert attributes dict to list of key-value pairs for JSON serialization
-        if 'attributes' in p and isinstance(p['attributes'], dict):
+        # Convert Decimal and datetime to JSON-serializable types
+        for key, val in list(p.items()):
+            if isinstance(val, Decimal):
+                p[key] = float(val)
+            elif isinstance(val, datetime):
+                p[key] = val.isoformat()
+
+        # If backend provides structured filters, expose as attributes array for FE
+        if 'filters' in p and isinstance(p['filters'], dict):
+            attrs = []
+            for k, vals in p['filters'].items():
+                if isinstance(vals, list):
+                    for v in vals:
+                        attrs.append({'type': k, 'value': v})
+                elif vals is not None:
+                    attrs.append({'type': k, 'value': vals})
+            p['attributes'] = attrs
+        elif 'attributes' in p and isinstance(p['attributes'], dict):
+            # Legacy path: convert dict to array of {type, value}
             p['attributes'] = [{'type': k, 'value': v} for k, vals in p['attributes'].items() for v in vals]
+
+        # Optionally, decode ai_keys JSON to array for convenience
+        if 'ai_keys' in p and isinstance(p['ai_keys'], str):
+            try:
+                parsed = json.loads(p['ai_keys'])
+                if isinstance(parsed, list):
+                    p['ai_keys'] = parsed
+            except Exception:
+                pass
+
     return jsonify(products)
 
 @app.route('/orders', methods=['GET'])
@@ -88,20 +119,92 @@ def get_order(order_id):
 
 @app.route('/orders', methods=['POST'])
 def create_order():
-    data = request.json
-    customer_name = data.get('customer_name')
-    items = data.get('items')
-    total_price = data.get('total_price')
-    status = data.get('status', 'pending')
+    try:
+        data = request.json
+        
+        if not data:
+            return jsonify({'error': 'Không có dữ liệu được gửi'}), 400
+            
+        customer_name = data.get('customer_name')
+        items = data.get('items')
+        total_price = data.get('total_price')
+        status = data.get('status', 'pending')
+        order_type = data.get('order_type')
+        payment_method = data.get('payment_method')
+        table_number = data.get('table_number')
+        needs_assistance = bool(data.get('needs_assistance', False))
+        note = data.get('note')
+        customer_email = data.get('customer_email')
+        email_receipt = bool(data.get('email_receipt', False))
+        payment_status = data.get('payment_status', 'unpaid')
 
-    if not customer_name or not items or total_price is None:
-        return jsonify({'error': 'Missing required fields'}), 400
+        # Validate required fields
+        if not customer_name or not customer_name.strip():
+            return jsonify({'error': 'Tên khách hàng là bắt buộc'}), 400
+            
+        if not items or not isinstance(items, list) or len(items) == 0:
+            return jsonify({'error': 'Danh sách sản phẩm không được để trống'}), 400
+            
+        if total_price is None:
+            return jsonify({'error': 'Tổng giá là bắt buộc'}), 400
+            
+        try:
+            total_price = float(total_price)
+            if total_price < 0:
+                return jsonify({'error': 'Tổng giá phải lớn hơn 0'}), 400
+        except (ValueError, TypeError):
+            return jsonify({'error': 'Tổng giá phải là số'}), 400
 
-    order_id = order_manager.add_order(customer_name, items, total_price, status)
-    if order_id:
-        return jsonify({'order_id': order_id}), 201
-    else:
-        return jsonify({'error': 'Failed to create order'}), 500
+        # Validate and sanitize items
+        sanitized_items = []
+        for idx, item in enumerate(items):
+            if not isinstance(item, dict):
+                return jsonify({'error': f'Item thứ {idx+1} phải là object'}), 400
+
+            if 'product_id' not in item or 'quantity' not in item:
+                return jsonify({'error': f'Item thứ {idx+1} thiếu product_id hoặc quantity'}), 400
+
+            try:
+                product_id = int(item['product_id'])
+                quantity = int(item['quantity'])
+
+                if product_id <= 0:
+                    return jsonify({'error': f'Lỗi validation: product_id trong item {idx+1} phải là số nguyên dương'}), 400
+                if quantity <= 0:
+                    return jsonify({'error': f'Lỗi validation: quantity trong item {idx+1} phải là số nguyên dương'}), 400
+                sanitized = {'product_id': product_id, 'quantity': quantity}
+                if 'selected_options' in item:
+                    try:
+                        json.dumps(item['selected_options'])
+                        sanitized['selected_options'] = item['selected_options']
+                    except Exception:
+                        pass
+                sanitized_items.append(sanitized)
+            except (ValueError, TypeError):
+                return jsonify({'error': f'Lỗi validation: product_id và quantity trong item {idx+1} phải là số nguyên'}), 400
+
+        order_id = order_manager.add_order(
+            customer_name,
+            sanitized_items,
+            total_price,
+            status,
+            order_type,
+            payment_method,
+            table_number,
+            needs_assistance,
+            note,
+            customer_email,
+            email_receipt,
+            payment_status
+        )
+        if order_id:
+            return jsonify({'order_id': order_id}), 201
+        else:
+            return jsonify({'error': 'Không thể tạo đơn hàng trong database'}), 500
+            
+    except Exception as e:
+        print(f"Error in create_order API: {str(e)}")
+        return jsonify({'error': f'Lỗi server: {str(e)}'}), 500
 
 @app.route('/orders/<int:order_id>', methods=['PUT'])
 def update_order(order_id):

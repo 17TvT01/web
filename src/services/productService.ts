@@ -21,23 +21,33 @@ class ProductService {
             const data = await response.json();
 
             // Map backend product data to frontend Product type
-            this.products = data.map((p: any) => ({
+            this.products = data.map((p: any) => {
+                // Build filters object from attributes array and ai_keys (if provided)
+                const baseFilters: any = Array.isArray(p.attributes)
+                    ? p.attributes.reduce((acc: any, attr: any) => {
+                        if (!acc[attr.type]) acc[attr.type] = [];
+                        acc[attr.type].push(attr.value);
+                        return acc;
+                    }, {})
+                    : {};
+                if (Array.isArray(p.ai_keys)) {
+                    baseFilters['ai_keys'] = [...new Set([...(baseFilters['ai_keys'] || []), ...p.ai_keys])];
+                }
+
+                return ({
                 id: p.id.toString(),
                 name: p.name,
                 price: p.price,
                 image: p.image_url || '/images/default-product.jpg',
                 category: p.category.toLowerCase(), // Đảm bảo category được chuyển thành chữ thường
                 rating: p.rating || 0,
-                filters: p.attributes ? p.attributes.reduce((acc: any, attr: any) => {
-                    if (!acc[attr.type]) acc[attr.type] = [];
-                    acc[attr.type].push(attr.value);
-                    return acc;
-                }, {}) : {},
+                filters: baseFilters,
                 inStock: p.quantity > 0,
                 onSale: false,
                 salePrice: null,
                 isNew: false
-            }));
+                });
+            });
         } catch (error) {
             console.error('Error loading products:', error);
             throw error;

@@ -21,9 +21,40 @@ class StoreGUI:
         self.product_manager = ProductManager()
         self.order_manager = OrderManager()
 
+        # Status label mapping between UI (VN) and DB enum values
+        self.UI_TO_DB_STATUS = {
+            "chưa giải quyết": "pending",
+            "Chưa giải quyết": "pending",
+            "đang xử lý": "pending",
+            "Hoàn thành": "completed",
+            "Hoàn thành": "completed",
+            "Đã hủy": "cancelled",
+            "Đã hủy": "cancelled",
+        }
+        self.DB_TO_UI_STATUS = {
+            "pending": "Chưa giải quyết",
+            "completed": "Hoàn thành",
+            "cancelled": "Đã hủy",
+        }
+
+        # Override status mappings with clean Vietnamese labels (used with lowercased lookups)
+        self.UI_TO_DB_STATUS = {
+            "chưa giải quyết": "pending",
+            "đang xử lý": "pending",
+            "hoàn thành": "completed",
+            "đã hủy": "cancelled",
+        }
+        self.DB_TO_UI_STATUS = {
+            "pending": "Chưa giải quyết",
+            "completed": "Hoàn thành",
+            "cancelled": "Đã hủy",
+        }
+
         self.selected_image_path = None
         self.current_product_id = None  # For editing
         self.editing_mode = False
+        self.filter_vars = {} # Để lưu trạng thái của các checkbox lọc
+        self.form_filter_vars = {}  # Lưu trạng thái key lọc khi thêm sản phẩm
 
         # Main container with tab control
         self.tab_control = ttk.Notebook(root)
@@ -43,10 +74,10 @@ class StoreGUI:
         self._setup_right_panel()
 
         # Setup order management UI in order_tab
-        self._setup_order_ui()
+        self._setup_order_ui_v2()
 
         # Load initial data
-        self.load_products()
+        self.on_category_change() # Tải bộ lọc và sản phẩm ban đầu
         self.load_orders()
 
     # Existing product management UI setup methods, but adjusted to use self.product_tab as parent
@@ -72,8 +103,18 @@ class StoreGUI:
                 text=text,
                 value=value,
                 variable=self.category_var,
-                command=self.load_products
+                command=self.on_category_change
             ).pack(pady=2)
+
+        # Thêm đường phân cách
+        ttk.Separator(self.left_panel, orient='horizontal').pack(fill='x', pady=10, padx=5)
+
+        # Frame cho các bộ lọc chi tiết (sẽ được tạo động)
+        self.dynamic_filter_frame = ttk.Frame(self.left_panel)
+        self.dynamic_filter_frame.pack(fill=tk.X, padx=5, pady=5, anchor='n')
+
+        # Thêm đường phân cách
+        ttk.Separator(self.left_panel, orient='horizontal').pack(fill='x', pady=10, padx=5)
 
         # Search với style mới
         search_frame = ttk.Frame(self.left_panel)
@@ -86,7 +127,7 @@ class StoreGUI:
         ).pack(anchor=tk.W, pady=(0, 5))
         
         self.search_var = tk.StringVar()
-        self.search_var.trace('w', lambda *args: self.load_products())
+        self.search_var.trace('w', lambda *args: self.load_products(update_filters=False))
         search_entry = ttk.Entry(
             search_frame,
             textvariable=self.search_var,
@@ -173,6 +214,11 @@ class StoreGUI:
             state="readonly"
         )
         category_combo.pack(fill=tk.X, pady=(0, 10))
+        self.new_category_var.trace('w', lambda *args: self._update_form_filter_options())
+
+        ttk.Label(form_frame, text="Key lọc sản phẩm:").pack(anchor=tk.W)
+        self.form_filter_frame = ttk.Frame(form_frame)
+        self.form_filter_frame.pack(fill=tk.X, pady=(0, 10))
 
         # Tạo frame cố định ở dưới cùng cho các nút
         bottom_frame = ttk.Frame(self.left_panel)
@@ -420,6 +466,7 @@ class StoreGUI:
                 'drink': 'Đồ uống'
             }
             self.new_category_var.set(category_display.get(product['category']))
+            self._update_form_filter_options(product.get('filters', {}).get('ai_keys', []))
 
             # Show current image
             if product['image_url']:
@@ -437,6 +484,59 @@ class StoreGUI:
         self.submit_btn.configure(text="Thêm Sản Phẩm")
         self.cancel_btn.configure(state=tk.DISABLED)
 
+    def on_category_change(self):
+        """Được gọi khi người dùng thay đổi danh mục."""
+        self.load_products(update_filters=True)
+
+    def _update_dynamic_filters(self):
+        """Cập nhật các checkbox lọc chi tiết dựa trên danh mục đã chọn."""
+        # Xóa các bộ lọc cũ
+        for widget in self.dynamic_filter_frame.winfo_children():
+            widget.destroy()
+        self.filter_vars.clear()
+
+        category = self.category_var.get()
+        if category == "all":
+            return  # Không hiển thị bộ lọc chi tiết cho "Tất cả"
+
+        # Lấy tất cả sản phẩm của danh mục để tìm các thẻ lọc có sẵn
+        all_category_products = self.product_manager.get_all_products(category)
+        available_filters = set()
+        for p in all_category_products:
+            if 'ai_keys' in p.get('filters', {}):
+                available_filters.update(p['filters']['ai_keys'])
+        
+        # Tạo các checkbox mới nếu có
+        if available_filters:
+            ttk.Label(self.dynamic_filter_frame, text="Lọc Chi Tiết", font=('Helvetica', 10, 'bold')).pack(anchor=tk.W, pady=(0, 5))
+            for f in sorted(list(available_filters)):
+                var = tk.BooleanVar(value=False)
+                cb = ttk.Checkbutton(self.dynamic_filter_frame, text=f.capitalize(), variable=var, command=lambda: self.load_products(update_filters=False))
+                cb.pack(anchor=tk.W, padx=10)
+                self.filter_vars[f] = var
+
+    def _update_form_filter_options(self, selected_keys=None):
+        """Cập nhật các checkbox key lọc trong form sản phẩm."""
+        for widget in self.form_filter_frame.winfo_children():
+            widget.destroy()
+        self.form_filter_vars.clear()
+
+        category_display = self.new_category_var.get()
+        category_map = {
+            "Bánh kem": "cake",
+            "Đồ ăn": "food",
+            "Đồ uống": "drink",
+        }
+        category = category_map.get(category_display)
+        if not category:
+            return
+
+        options = self.product_manager.get_filter_options(category)
+        for opt in options:
+            var = tk.BooleanVar(value=opt in selected_keys if selected_keys else False)
+            ttk.Checkbutton(self.form_filter_frame, text=opt.capitalize(), variable=var).pack(anchor=tk.W, padx=10)
+            self.form_filter_vars[opt] = var
+
     def submit_product(self):
         try:
             # Get values from form
@@ -445,9 +545,6 @@ class StoreGUI:
             quantity_str = self.product_fields['quantity'].get().strip()
             description = self.product_fields['description'].get().strip()
             category_display = self.new_category_var.get()
-
-            # Extract attributes using ProductManager
-            attributes = self.product_manager._extract_attributes_from_text(name, description)
 
             # Validate inputs
             if not name:
@@ -490,6 +587,9 @@ class StoreGUI:
                 else:
                     image_path = self.selected_image_path
 
+            selected_keys = [k for k, v in self.form_filter_vars.items() if v.get()]
+            attributes = {'ai_keys': selected_keys} if selected_keys else None
+
             if self.editing_mode:
                 # Update existing product
                 success = self.product_manager.update_product(
@@ -499,12 +599,13 @@ class StoreGUI:
                     category=category,
                     quantity=quantity,
                     description=description,
-                    image_url=image_path
+                    image_url=image_path,
+                    attributes=attributes
                 )
 
                 if success:
                     messagebox.showinfo("Thành công", "Đã cập nhật sản phẩm!")
-                    self.cancel_edit()
+                    self.cancel_edit() # Xóa form
                 else:
                     messagebox.showerror("Lỗi", "Không thể cập nhật sản phẩm!")
             else:
@@ -515,7 +616,8 @@ class StoreGUI:
                     category=category,
                     quantity=quantity,
                     description=description,
-                    image_url=image_path
+                    image_url=image_path,
+                    attributes=attributes
                 )
 
                 if product_id:
@@ -524,7 +626,8 @@ class StoreGUI:
                 else:
                     messagebox.showerror("Lỗi", "Không thể thêm sản phẩm!")
 
-            self.load_products()
+            # Tải lại sản phẩm và cập nhật bộ lọc
+            self.on_category_change()
 
         except Exception as e:
             messagebox.showerror("Lỗi", f"Đã xảy ra lỗi: {str(e)}")
@@ -570,21 +673,41 @@ class StoreGUI:
         self.form_preview.configure(image='')
         self.image_preview.configure(image='')
 
-    def load_products(self):
+    def load_products(self, update_filters=True):
+        """
+        Tải và hiển thị sản phẩm, có tùy chọn cập nhật bộ lọc chi tiết.
+        :param update_filters: True nếu cần tạo lại các checkbox lọc (khi đổi danh mục).
+        """
+        if update_filters:
+            self._update_dynamic_filters()
+
         # Clear current items
         for item in self.tree.get_children():
             self.tree.delete(item)
 
-        # Get products based on category and search
+        # Lấy sản phẩm dựa trên danh mục và tìm kiếm
         category = self.category_var.get()
         search = self.search_var.get()
 
         if search:
             products = self.product_manager.search_products(search)
+            # Nếu đang tìm kiếm, có thể lọc thêm theo danh mục hiện tại
+            if category != "all":
+                products = [p for p in products if p['category'] == category]
         elif category != "all":
             products = self.product_manager.get_all_products(category)
         else:
             products = self.product_manager.get_all_products()
+
+        # Lọc sản phẩm dựa trên các checkbox đã chọn
+        active_filters = {key for key, var in self.filter_vars.items() if var.get()}
+        if active_filters:
+            filtered_products = []
+            for product in products:
+                product_tags = set(product.get('filters', {}).get('ai_keys', []))
+                if active_filters.issubset(product_tags):
+                    filtered_products.append(product)
+            products = filtered_products
 
         # Category display mapping
         category_display = {
@@ -617,143 +740,426 @@ class StoreGUI:
         if messagebox.askyesno("Xác nhận", "Bạn có chắc muốn xóa sản phẩm này?"):
             for item in selected:
                 product_id = self.tree.item(item)['values'][0]
-                if self.product_manager.delete_product(product_id):
-                    self.tree.delete(item)
-                    # Clear image preview if deleted product was selected
-                    if product_id == self.current_product_id:
-                        self.image_preview.configure(image='')
-                else:
+                if not self.product_manager.delete_product(product_id):
                     messagebox.showerror("Lỗi", f"Không thể xóa sản phẩm {product_id}")
+            
+            # Tải lại danh sách sản phẩm và bộ lọc
+            self.on_category_change()
+            self.image_preview.configure(image='') # Xóa ảnh preview
 
-    # New order management UI setup
+
+    # Enhanced order management UI setup with features from order_gui.py
     def _setup_order_ui(self):
-        self.order_left_panel = ttk.Frame(self.order_tab)
-        self.order_left_panel.pack(side=tk.LEFT, fill=tk.Y, padx=5, pady=5)
-
-        self.order_center_panel = ttk.Frame(self.order_tab)
-        self.order_center_panel.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=5, pady=5)
-
-        self.order_right_panel = ttk.Frame(self.order_tab, width=300)
-        self.order_right_panel.pack(side=tk.LEFT, fill=tk.Y, padx=5, pady=5)
-
-        # Order list treeview
-        columns = ("ID", "Khách hàng", "Tổng tiền", "Trạng thái")
-        self.order_tree = ttk.Treeview(
-            self.order_center_panel,
-            columns=columns,
-            show="headings"
-        )
-
+        # Main order frame
+        main_order_frame = ttk.Frame(self.order_tab)
+        main_order_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        
+        # Header frame
+        header_frame = ttk.Frame(main_order_frame)
+        header_frame.pack(fill=tk.X, pady=(0, 10))
+        
+        ttk.Label(header_frame, text="QUẢN LÝ ĐƠN HÀNG", 
+                 font=('Helvetica', 14, 'bold')).pack(side=tk.LEFT)
+        
+        # Filter frame
+        filter_frame = ttk.LabelFrame(main_order_frame, text="Bộ lọc", padding="5")
+        filter_frame.pack(fill=tk.X, pady=(0, 10))
+        
+        # Status filter
+        ttk.Label(filter_frame, text="Trạng thái:").pack(side=tk.LEFT, padx=5)
+        self.order_status_var = tk.StringVar(value="all")
+        status_combo = ttk.Combobox(filter_frame, textvariable=self.order_status_var,
+                                   values=["all", "chưa giải quyết", "hoàn thành", "đã hủy"],
+                                   state="readonly", width=15)
+        status_combo.pack(side=tk.LEFT, padx=5)
+        status_combo.bind('<<ComboboxSelected>>', lambda e: self.load_orders())
+        
+        # Date filter
+        ttk.Label(filter_frame, text="Từ ngày:").pack(side=tk.LEFT, padx=5)
+        self.from_date = ttk.Entry(filter_frame, width=12)
+        self.from_date.pack(side=tk.LEFT, padx=5)
+        self.from_date.insert(0, datetime.now().strftime("%Y-%m-%d"))
+        
+        ttk.Label(filter_frame, text="Đến ngày:").pack(side=tk.LEFT, padx=5)
+        self.to_date = ttk.Entry(filter_frame, width=12)
+        self.to_date.pack(side=tk.LEFT, padx=5)
+        self.to_date.insert(0, datetime.now().strftime("%Y-%m-%d"))
+        
+        ttk.Button(filter_frame, text="Làm mới", 
+                  command=self.load_orders).pack(side=tk.LEFT, padx=5)
+        
+        # Create paned window for order management
+        paned = ttk.PanedWindow(main_order_frame, orient=tk.HORIZONTAL)
+        paned.pack(fill=tk.BOTH, expand=True)
+        
+        # Left panel - Order list
+        left_frame = ttk.Frame(paned)
+        paned.add(left_frame, weight=2)
+        
+        # Right panel - Order details
+        right_frame = ttk.Frame(paned)
+        paned.add(right_frame, weight=1)
+        
+        # Order list with enhanced columns
+        columns = ("ID", "Khách hàng", "Tổng tiền", "Trạng thái", "Ngày đặt")
+        self.order_tree = ttk.Treeview(left_frame, columns=columns, show="headings", height=15)
+        
+        # Configure columns
         for col in columns:
             self.order_tree.heading(col, text=col)
-
+            
         self.order_tree.column("ID", width=50)
         self.order_tree.column("Khách hàng", width=150)
         self.order_tree.column("Tổng tiền", width=100)
         self.order_tree.column("Trạng thái", width=100)
-
-        self.order_tree.bind('<<TreeviewSelect>>', self.on_select_order)
-
-        scrollbar = ttk.Scrollbar(self.order_center_panel, orient=tk.VERTICAL, command=self.order_tree.yview)
-        self.order_tree.configure(yscrollcommand=scrollbar.set)
-
-        btn_frame = ttk.Frame(self.order_center_panel)
-
-        ttk.Button(
-            btn_frame,
-            text="Cập Nhật Trạng Thái",
-            command=self.update_order_status
-        ).pack(side=tk.LEFT, padx=5)
-
-        ttk.Button(
-            btn_frame,
-            text="Xóa Đơn Hàng",
-            command=self.delete_order
-        ).pack(side=tk.LEFT, padx=5)
-
-        self.order_tree.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
-        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-        btn_frame.pack(side=tk.BOTTOM, pady=10)
-
-        # Order detail display
-        self.order_detail_label = ttk.Label(self.order_right_panel, text="Chi tiết đơn hàng")
-        self.order_detail_label.pack(pady=10)
-
-        self.order_detail_text = tk.Text(self.order_right_panel, width=40, height=30, state=tk.DISABLED)
-        self.order_detail_text.pack(expand=True)
+        self.order_tree.column("Ngày đặt", width=120)
+        
+        # Scrollbars for order tree
+        v_scrollbar = ttk.Scrollbar(left_frame, orient=tk.VERTICAL, command=self.order_tree.yview)
+        h_scrollbar = ttk.Scrollbar(left_frame, orient=tk.HORIZONTAL, command=self.order_tree.xview)
+        self.order_tree.configure(yscrollcommand=v_scrollbar.set, xscrollcommand=h_scrollbar.set)
+        
+        # Action buttons frame
+        action_frame = ttk.Frame(left_frame)
+        
+        ttk.Button(action_frame, text="Cập nhật trạng thái", 
+                  command=self.update_order_status).pack(side=tk.LEFT, padx=2)
+        ttk.Button(action_frame, text="Xóa đơn hàng", 
+                  command=self.delete_order).pack(side=tk.LEFT, padx=2)
+        ttk.Button(action_frame, text="In hóa đơn", 
+                  command=self.print_invoice).pack(side=tk.LEFT, padx=2)
+        
+        # Pack order list widgets
+        self.order_tree.grid(row=0, column=0, sticky='nsew')
+        v_scrollbar.grid(row=0, column=1, sticky='ns')
+        h_scrollbar.grid(row=1, column=0, sticky='ew')
+        action_frame.grid(row=2, column=0, columnspan=2, pady=5)
+        
+        left_frame.grid_rowconfigure(0, weight=1)
+        left_frame.grid_columnconfigure(0, weight=1)
+        
+        # Order details panel
+        details_frame = ttk.LabelFrame(right_frame, text="Chi tiết đơn hàng", padding="10")
+        details_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # Order info
+        self.order_info_frame = ttk.Frame(details_frame)
+        self.order_info_frame.pack(fill=tk.X, pady=(0, 10))
+        
+        # Items treeview
+        items_frame = ttk.LabelFrame(details_frame, text="Sản phẩm", padding="5")
+        items_frame.pack(fill=tk.BOTH, expand=True)
+        
+        item_columns = ("Sản phẩm", "Số lượng", "Đơn giá", "Thành tiền")
+        self.items_tree = ttk.Treeview(items_frame, columns=item_columns, 
+                                      show="headings", height=8)
+        
+        for col in item_columns:
+            self.items_tree.heading(col, text=col)
+            
+        self.items_tree.column("Sản phẩm", width=150)
+        self.items_tree.column("Số lượng", width=70)
+        self.items_tree.column("Đơn giá", width=100)
+        self.items_tree.column("Thành tiền", width=100)
+        
+        item_scrollbar = ttk.Scrollbar(items_frame, orient=tk.VERTICAL, 
+                                      command=self.items_tree.yview)
+        self.items_tree.configure(yscrollcommand=item_scrollbar.set)
+        
+        self.items_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        item_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        # Status update frame
+        status_frame = ttk.LabelFrame(details_frame, text="Cập nhật trạng thái", padding="5")
+        status_frame.pack(fill=tk.X, pady=(10, 0))
+        
+        self.order_status_combo = ttk.Combobox(status_frame, 
+                                        values=["Chưa giải quyết", "Đang xử lý", "Hoàn thành", "Đã hủy"],
+                                        state="readonly", width=15)
+        self.order_status_combo.pack(side=tk.LEFT, padx=5)
+        
+        ttk.Button(status_frame, text="Cập nhật", 
+                  command=self.update_selected_status).pack(side=tk.LEFT, padx=5)
+        
+        # Bind selection event
+        self.order_tree.bind('<<TreeviewSelect>>', self.on_order_select)
 
     def load_orders(self):
-        # Clear current items
-        for item in self.order_tree.get_children():
-            self.order_tree.delete(item)
-
-        orders = self.order_manager.get_all_orders()
-
-        for order in orders:
-            self.order_tree.insert(
-                "",
-                tk.END,
-                values=(
-                    order['id'],
-                    order['customer_name'],
-                    f"{order['total_price']:,} VNĐ",
-                    order['status']
+        """Load orders with enhanced filtering"""
+        try:
+            # Clear current items
+            for item in self.order_tree.get_children():
+                self.order_tree.delete(item)
+            
+            # Get filter values
+            status = self.order_status_var.get()
+            if status == "all":
+                status = None
+            else:
+                status = self.UI_TO_DB_STATUS.get(status.strip().lower(), status)
+                
+            # Load orders
+            orders = self.order_manager.get_all_orders(status)
+            
+            # Insert orders into tree
+            for order in orders:
+                created_at = order.get('created_at', '')
+                if isinstance(created_at, str) and len(created_at) > 10:
+                    created_at = created_at[:10]
+                    
+                self.order_tree.insert(
+                    "",
+                    tk.END,
+                    values=(
+                        order['id'],
+                        order['customer_name'],
+                        f"{order['total_price']:,} VNĐ",
+                        order['status'],
+                        created_at
+                    )
                 )
-            )
+                
+        except Exception as e:
+            messagebox.showerror("Lỗi", f"Không thể tải danh sách đơn hàng: {str(e)}")
 
-    def on_select_order(self, event):
+    def on_order_select(self, event):
+        """Handle order selection with enhanced details display"""
         selected = self.order_tree.selection()
         if not selected:
             return
-
+            
         item = selected[0]
         order_id = self.order_tree.item(item)['values'][0]
         order = self.order_manager.get_order(order_id)
-
+        
         if order:
-            self.order_detail_text.configure(state=tk.NORMAL)
-            self.order_detail_text.delete('1.0', tk.END)
+            # Render base details
+            self.display_order_details(order)
+            # Rebuild items with product options and correct prices
+            try:
+                for iid in self.items_tree.get_children():
+                    self.items_tree.delete(iid)
+                for it in order.get('items', []):
+                    name = it.get('name', f"#{it.get('product_id','')}")
+                    qty = it.get('quantity', 0)
+                    price = it.get('price', 0) or 0
+                    # Build options string
+                    opts = it.get('selected_options')
+                    opts_text = ''
+                    if isinstance(opts, dict):
+                        parts = []
+                        for k, v in opts.items():
+                            if isinstance(v, list):
+                                parts.append(f"{k}: {', '.join(map(str, v))}")
+                            else:
+                                parts.append(f"{k}: {v}")
+                        if parts:
+                            opts_text = ' — ' + '; '.join(parts)
+                    elif isinstance(opts, list):
+                        parts = []
+                        for v in opts:
+                            if isinstance(v, dict):
+                                # Prefer nested label/value if present
+                                cand = v.get('label') or v.get('value')
+                                if cand is not None:
+                                    parts.append(str(cand))
+                                else:
+                                    # Fallback: join non-empty values
+                                    inner_vals = [str(val) for key, val in v.items() if key not in ('label','value')]
+                                    if inner_vals:
+                                        parts.append(', '.join(inner_vals))
+                            else:
+                                parts.append(str(v))
+                        if parts:
+                            opts_text = ' — ' + '; '.join(parts)
+                    elif isinstance(opts, str) and opts.strip():
+                        opts_text = ' — ' + opts.strip()
+                    label = name + opts_text
+                    try:
+                        total = (qty or 0) * float(price)
+                    except Exception:
+                        total = 0
+                    self.items_tree.insert('', tk.END, values=(label, qty, f"{price:,} VND", f"{total:,} VND"))
+            except Exception:
+                pass
+            
+    def display_order_details(self, order):
+        """Display order details in right panel with enhanced format"""
+        # Clear order info
+        for widget in self.order_info_frame.winfo_children():
+            widget.destroy()
+            
+        # Display order information
+        table_info = order.get('table_number') or 'N/A'
+        created_at = order.get('created_at', '')
+        if isinstance(created_at, str) and len(created_at) > 10:
+            created_at = created_at[:10]
+            
+            table_info = order.get('table_number') or 'N/A'
+        assist = 'Có' if order.get('needs_assistance') else 'Không'
+        info_text = f"""ID đơn hàng: {order['id']}
+                    Khách hàng: {order['customer_name']}
+                    Tổng tiền: {order['total_price']:,} VNĐ
+                    Trạng thái: {order['status'].upper()}
+                    Ngày đặt: {created_at}
+                    Bàn: {table_info}
+                    Gọi phục vụ: {assist}"""
+        
+        ttk.Label(self.order_info_frame, text=info_text.strip(), 
+                 justify=tk.LEFT).pack(anchor=tk.W)
 
-            detail_str = f"ID: {order['id']}\n"
-            detail_str += f"Khách hàng: {order['customer_name']}\n"
-            detail_str += f"Tổng tiền: {order['total_price']:,} VNĐ\n"
-            detail_str += f"Trạng thái: {order['status']}\n"
-            detail_str += "Sản phẩm:\n"
-
-            for item in order.get('items', []):
-                detail_str += f" - {item['name']} (ID: {item['product_id']}), Số lượng: {item['quantity']}\n"
-
-            self.order_detail_text.insert(tk.END, detail_str)
-            self.order_detail_text.configure(state=tk.DISABLED)
+        # Hiển thị tóm tắt tùy chọn sản phẩm (trong khu vực chi tiết đơn hàng)
+        try:
+            opts_lines = []
+            for it in order.get('items', []):
+                name = it.get('name', f"#{it.get('product_id','')}")
+                opts = it.get('selected_options')
+                if not opts:
+                    continue
+                parts = []
+                if isinstance(opts, dict):
+                    for k, v in opts.items():
+                        if isinstance(v, list):
+                            parts.append(f"{k}: {', '.join(map(str, v))}")
+                        else:
+                            parts.append(f"{k}: {v}")
+                elif isinstance(opts, list):
+                    for v in opts:
+                        if isinstance(v, dict):
+                            for k2, v2 in v.items():
+                                parts.append(f"{k2}: {v2}")
+                        else:
+                            parts.append(str(v))
+                elif isinstance(opts, str) and opts.strip():
+                    parts.append(opts.strip())
+                if parts:
+                    opts_lines.append(f"- {name}: " + "; ".join(parts))
+            if opts_lines:
+                ttk.Label(self.order_info_frame, text="Tùy chọn:", font=('Helvetica', 10, 'bold')).pack(anchor=tk.W, pady=(6,0))
+                ttk.Label(self.order_info_frame, text="\n".join(opts_lines), justify=tk.LEFT).pack(anchor=tk.W)
+        except Exception:
+            pass
+        
+        # Update status combo (map DB status to UI label if possible)
+        try:
+            status_display = self.DB_TO_UI_STATUS.get(order.get('status'), order.get('status'))
+        except Exception:
+            status_display = order.get('status')
+        self.order_status_combo.set(status_display)
+        
+        # Clear items tree
+        for item in self.items_tree.get_children():
+            self.items_tree.delete(item)
+            
+        # Display items
+        items = order.get('items', [])
+        for item in items:
+            product_name = item.get('name', f"Sản phẩm #{item.get('product_id', 'N/A')}")
+            quantity = item.get('quantity', 0)
+            price = item.get('price', 0)
+            total = quantity * price
+            
+            self.items_tree.insert(
+                "",
+                tk.END,
+                values=(
+                    product_name,
+                    quantity,
+                    f"{price:,} VNĐ",
+                    f"{total:,} VNĐ"
+                )
+            )
 
     def update_order_status(self):
+        """Update order status from main button"""
         selected = self.order_tree.selection()
         if not selected:
-            messagebox.showwarning("Cảnh báo", "Vui lòng chọn đơn hàng để cập nhật trạng thái!")
+            messagebox.showwarning("Cảnh báo", "Vui lòng chọn đơn hàng!")
             return
-
+            
+        self.update_selected_status()
+        
+    def update_selected_status(self):
+        """Update status of selected order"""
+        selected = self.order_tree.selection()
+        if not selected:
+            return
+            
         item = selected[0]
         order_id = self.order_tree.item(item)['values'][0]
-
-        # Prompt for new status
-        status_options = ['pending', 'completed', 'cancelled']
-        new_status = tk.simpledialog.askstring("Cập Nhật Trạng Thái", f"Nhập trạng thái mới ({', '.join(status_options)}):")
-
-        if new_status not in status_options:
-            messagebox.showerror("Lỗi", "Trạng thái không hợp lệ!")
+        new_status = self.order_status_combo.get()
+        
+        if not new_status:
+            messagebox.showwarning("Cảnh báo", "Vui lòng chọn trạng thái!")
             return
-
-        success = self.order_manager.update_order_status(order_id, new_status)
+            
+        # Map UI label to DB enum value before updating
+        db_status = self.UI_TO_DB_STATUS.get(new_status.strip().lower(), new_status)
+        allowed_statuses = {"pending", "completed", "cancelled", "canceled"}
+        if db_status not in allowed_statuses:
+            messagebox.showerror("Lỗi", f"Trạng thái không hợp lệ: {new_status}")
+            return
+        success = self.order_manager.update_order_status(order_id, db_status)
         if success:
             messagebox.showinfo("Thành công", "Đã cập nhật trạng thái đơn hàng!")
             self.load_orders()
+            # Refresh details
+            order = self.order_manager.get_order(order_id)
+            if order:
+                # Render base details then rebuild items with options + prices
+                self.display_order_details(order)
+                try:
+                    for iid in self.items_tree.get_children():
+                        self.items_tree.delete(iid)
+                    for it in order.get('items', []):
+                        name = it.get('name', f"#{it.get('product_id','')}")
+                        qty = it.get('quantity', 0)
+                        price = it.get('price', 0) or 0
+                        # Build options string
+                        opts = it.get('selected_options')
+                        opts_text = ''
+                        if isinstance(opts, dict):
+                            parts = []
+                            for k, v in opts.items():
+                                if isinstance(v, list):
+                                    parts.append(f"{k}: {', '.join(map(str, v))}")
+                                else:
+                                    parts.append(f"{k}: {v}")
+                            if parts:
+                                opts_text = ' — ' + '; '.join(parts)
+                        elif isinstance(opts, list):
+                            parts = []
+                            for v in opts:
+                                if isinstance(v, dict):
+                                    cand = v.get('label') or v.get('value')
+                                    if cand is not None:
+                                        parts.append(str(cand))
+                                    else:
+                                        inner_vals = [str(val) for key, val in v.items() if key not in ('label','value')]
+                                        if inner_vals:
+                                            parts.append(', '.join(inner_vals))
+                                else:
+                                    parts.append(str(v))
+                            if parts:
+                                opts_text = ' — ' + '; '.join(parts)
+                        elif isinstance(opts, str) and opts.strip():
+                            opts_text = ' — ' + opts.strip()
+                        label = name + opts_text
+                        try:
+                            total = (qty or 0) * float(price)
+                        except Exception:
+                            total = 0
+                        self.items_tree.insert('', tk.END, values=(label, qty, f"{price:,} VND", f"{total:,} VND"))
+                except Exception:
+                    pass
         else:
-            messagebox.showerror("Lỗi", "Không thể cập nhật trạng thái đơn hàng!")
+            messagebox.showerror("Lỗi", "Không thể cập nhật trạng thái!")
 
     def delete_order(self):
+        """Delete selected order with confirmation"""
         selected = self.order_tree.selection()
         if not selected:
-            messagebox.showwarning("Cảnh báo", "Vui lòng chọn đơn hàng để xóa!")
+            messagebox.showwarning("Cảnh báo", "Vui lòng chọn đơn hàng!")
             return
 
         if messagebox.askyesno("Xác nhận", "Bạn có chắc muốn xóa đơn hàng này?"):
@@ -761,11 +1167,305 @@ class StoreGUI:
                 order_id = self.order_tree.item(item)['values'][0]
                 if self.order_manager.delete_order(order_id):
                     self.order_tree.delete(item)
-                    self.order_detail_text.configure(state=tk.NORMAL)
-                    self.order_detail_text.delete('1.0', tk.END)
-                    self.order_detail_text.configure(state=tk.DISABLED)
+                    # Clear details
+                    for widget in self.order_info_frame.winfo_children():
+                        widget.destroy()
+                    for item in self.items_tree.get_children():
+                        self.items_tree.delete(item)
                 else:
                     messagebox.showerror("Lỗi", f"Không thể xóa đơn hàng {order_id}")
+                    
+    def print_invoice(self):
+        """Print order invoice (placeholder)"""
+        selected = self.order_tree.selection()
+        if not selected:
+            messagebox.showwarning("Cảnh báo", "Vui lòng chọn đơn hàng!")
+            return
+            
+        item = selected[0]
+        order_id = self.order_tree.item(item)['values'][0]
+        messagebox.showinfo("In hóa đơn", f"Chức năng in hóa đơn cho đơn #{order_id} sẽ được triển khai sau!")
+
+    # --- New, simplified Order UI (v2) ---
+    def _setup_order_ui_v2(self):
+        main_order_frame = ttk.Frame(self.order_tab)
+        main_order_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+        # Header
+        header_frame = ttk.Frame(main_order_frame)
+        header_frame.pack(fill=tk.X, pady=(0, 10))
+        ttk.Label(header_frame, text="Quản lý đơn hàng", font=('Helvetica', 14, 'bold')).pack(side=tk.LEFT)
+
+        # Filters
+        filter_frame = ttk.LabelFrame(main_order_frame, text="Bộ lọc", padding=8)
+        filter_frame.pack(fill=tk.X, pady=(0, 10))
+
+        ttk.Label(filter_frame, text="Trạng thái:").pack(side=tk.LEFT, padx=5)
+        self.order_status_var = tk.StringVar(value="all")
+        status_combo = ttk.Combobox(filter_frame, textvariable=self.order_status_var,
+                                    values=["all", "chưa giải quyết", "hoàn thành", "đã hủy"],
+                                    state="readonly", width=18)
+        status_combo.pack(side=tk.LEFT, padx=5)
+        status_combo.bind('<<ComboboxSelected>>', lambda e: self.load_orders())
+
+        ttk.Label(filter_frame, text="Từ ngày:").pack(side=tk.LEFT, padx=5)
+        self.from_date = ttk.Entry(filter_frame, width=12)
+        self.from_date.pack(side=tk.LEFT)
+        ttk.Label(filter_frame, text="Đến ngày:").pack(side=tk.LEFT, padx=5)
+        self.to_date = ttk.Entry(filter_frame, width=12)
+        self.to_date.pack(side=tk.LEFT)
+
+        ttk.Label(filter_frame, text="Tìm kiếm:").pack(side=tk.LEFT, padx=5)
+        self.order_search_var = tk.StringVar()
+        search_entry = ttk.Entry(filter_frame, textvariable=self.order_search_var, width=24)
+        search_entry.pack(side=tk.LEFT)
+        search_entry.bind('<KeyRelease>', lambda e: self.load_orders())
+
+        ttk.Button(filter_frame, text="Làm mới", command=self.load_orders).pack(side=tk.LEFT, padx=6)
+
+        # Split panes
+        paned = ttk.PanedWindow(main_order_frame, orient=tk.HORIZONTAL)
+        paned.pack(fill=tk.BOTH, expand=True)
+
+        # Left: Orders list
+        left_frame = ttk.Frame(paned)
+        paned.add(left_frame, weight=2)
+        columns = ("ID", "Khách hàng", "Tổng tiền", "Trạng thái", "Ngày đặt")
+        self.order_tree = ttk.Treeview(left_frame, columns=columns, show="headings", height=16)
+        for col in columns:
+            self.order_tree.heading(col, text=col, command=lambda c=col: self._sort_orders_by(c))
+        self.order_tree.column("ID", width=60)
+        self.order_tree.column("Khách hàng", width=180)
+        self.order_tree.column("Tổng tiền", width=120)
+        self.order_tree.column("Trạng thái", width=120)
+        self.order_tree.column("Ngày đặt", width=130)
+        vbar = ttk.Scrollbar(left_frame, orient=tk.VERTICAL, command=self.order_tree.yview)
+        hbar = ttk.Scrollbar(left_frame, orient=tk.HORIZONTAL, command=self.order_tree.xview)
+        self.order_tree.configure(yscrollcommand=vbar.set, xscrollcommand=hbar.set)
+        self.order_tree.grid(row=0, column=0, sticky='nsew')
+        vbar.grid(row=0, column=1, sticky='ns')
+        hbar.grid(row=1, column=0, sticky='ew')
+        left_frame.grid_rowconfigure(0, weight=1)
+        left_frame.grid_columnconfigure(0, weight=1)
+
+        # Actions
+        act = ttk.Frame(left_frame)
+        act.grid(row=2, column=0, columnspan=2, pady=(6, 0), sticky='w')
+        ttk.Button(act, text="Cập nhật trạng thái", command=self.update_order_status).pack(side=tk.LEFT, padx=2)
+        ttk.Button(act, text="Xóa đơn hàng", command=self.delete_order).pack(side=tk.LEFT, padx=2)
+        ttk.Button(act, text="In hóa đơn", command=self.print_invoice).pack(side=tk.LEFT, padx=2)
+
+        # Right: Details
+        right_frame = ttk.Frame(paned)
+        paned.add(right_frame, weight=1)
+        details_frame = ttk.LabelFrame(right_frame, text="Chi tiết đơn hàng", padding=10)
+        details_frame.pack(fill=tk.BOTH, expand=True)
+        self.order_info_frame = ttk.Frame(details_frame)
+        self.order_info_frame.pack(fill=tk.X, pady=(0, 8))
+
+        items_frame = ttk.LabelFrame(details_frame, text="Sản phẩm", padding=6)
+        items_frame.pack(fill=tk.BOTH, expand=True)
+        icols = ("Sản phẩm", "Số lượng", "Đơn giá", "Thành tiền")
+        self.items_tree = ttk.Treeview(items_frame, columns=icols, show='headings', height=8)
+        for c in icols:
+            self.items_tree.heading(c, text=c)
+        self.items_tree.column("Sản phẩm", width=200)
+        self.items_tree.column("Số lượng", width=80)
+        self.items_tree.column("Đơn giá", width=120)
+        self.items_tree.column("Thành tiền", width=130)
+        ivbar = ttk.Scrollbar(items_frame, orient=tk.VERTICAL, command=self.items_tree.yview)
+        self.items_tree.configure(yscrollcommand=ivbar.set)
+        self.items_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        ivbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+        status_frame = ttk.LabelFrame(details_frame, text="Cập nhật trạng thái", padding=6)
+        status_frame.pack(fill=tk.X, pady=(8, 0))
+        self.order_status_combo = ttk.Combobox(status_frame,
+                                               values=["Chưa giải quyết", "Đang xử lý", "Hoàn thành", "Đã hủy"],
+                                               state='readonly', width=20)
+        self.order_status_combo.pack(side=tk.LEFT, padx=5)
+        ttk.Button(status_frame, text="Cập nhật", command=self.update_selected_status).pack(side=tk.LEFT, padx=5)
+
+        quick = ttk.Frame(details_frame)
+        quick.pack(fill=tk.X, pady=(6, 0))
+        ttk.Button(quick, text="Đánh dấu Chưa giải quyết",
+                   command=lambda: self._quick_set_status("chưa giải quyết")).pack(side=tk.LEFT, padx=4)
+        ttk.Button(quick, text="Đánh dấu Hoàn thành",
+                   command=lambda: self._quick_set_status("hoàn thành")).pack(side=tk.LEFT, padx=4)
+        ttk.Button(quick, text="Đánh dấu Đã hủy",
+                   command=lambda: self._quick_set_status("đã hủy")).pack(side=tk.LEFT, padx=4)
+
+        # Interactions
+        self.order_tree.bind('<<TreeviewSelect>>', self.on_order_select)
+        self.order_tree.bind('<Double-1>', self._on_order_double_click)
+        self._build_order_context_menu(self.order_tree)
+
+    # New loader with search + row highlighting
+    def load_orders(self):
+        try:
+            if not hasattr(self, 'order_tree'):
+                return
+            for iid in self.order_tree.get_children():
+                self.order_tree.delete(iid)
+
+            status = getattr(self, 'order_status_var', tk.StringVar(value='all')).get()
+            status_val = None if status == 'all' else self.UI_TO_DB_STATUS.get(status.strip().lower(), status)
+            orders = self.order_manager.get_all_orders(status_val)
+
+            # Search filter
+            search_q = ''
+            if hasattr(self, 'order_search_var'):
+                try:
+                    search_q = (self.order_search_var.get() or '').strip().lower()
+                except Exception:
+                    pass
+            rows = []
+            for od in orders:
+                if search_q:
+                    hay = f"{od.get('id','')} {od.get('customer_name','')} {od.get('status','')}".lower()
+                    if search_q not in hay:
+                        continue
+                rows.append(od)
+            for od in rows:
+                created_at = od.get('created_at', '')
+                if isinstance(created_at, str) and len(created_at) > 10:
+                    created_at = created_at[:10]
+                self.order_tree.insert('', tk.END,
+                                       values=(od['id'], od['customer_name'], f"{od['total_price']:,} VNĐ",
+                                               od['status'], created_at),
+                                       tags=(self._status_tag(od.get('status')),))
+            self._apply_order_row_tags()
+        except Exception as e:
+            messagebox.showerror('Lỗi', f'Không thể tải danh sách đơn hàng: {e}')
+
+    def _quick_set_status(self, label):
+        try:
+            self.order_status_combo.set(label)
+            self.update_selected_status()
+        except Exception:
+            pass
+
+    def _sort_orders_by(self, col):
+        if not hasattr(self, 'order_tree'):
+            return
+        items = [(iid, self.order_tree.item(iid, 'values')) for iid in self.order_tree.get_children('')]
+        if not items:
+            return
+        cols = ("ID", "Khách hàng", "Tổng tiền", "Trạng thái", "Ngày đặt")
+        try:
+            idx = cols.index(col)
+        except ValueError:
+            return
+        def key_fn(entry):
+            v = entry[1][idx]
+            if col == 'ID':
+                try:
+                    return int(v)
+                except Exception:
+                    return 0
+            if col == 'Tổng tiền':
+                try:
+                    return float(str(v).split()[0].replace(',', ''))
+                except Exception:
+                    return 0.0
+            return str(v)
+        reverse = getattr(self, '_order_sort_reverse', {}).get(col, False)
+        items.sort(key=key_fn, reverse=reverse)
+        for pos, (iid, _) in enumerate(items):
+            self.order_tree.move(iid, '', pos)
+        if not hasattr(self, '_order_sort_reverse'):
+            self._order_sort_reverse = {}
+        self._order_sort_reverse[col] = not reverse
+
+    def _build_order_context_menu(self, tree):
+        menu = tk.Menu(tree, tearoff=0)
+        menu.add_command(label='Xem chi tiết', command=self._open_order_detail_popup)
+        menu.add_separator()
+        menu.add_command(label='Đánh dấu Chưa giải quyết', command=lambda: self._quick_set_status('chưa giải quyết'))
+        menu.add_command(label='Đánh dấu Hoàn thành', command=lambda: self._quick_set_status('hoàn thành'))
+        menu.add_command(label='Đánh dấu Đã hủy', command=lambda: self._quick_set_status('đã hủy'))
+        menu.add_separator()
+        menu.add_command(label='In hóa đơn', command=self.print_invoice)
+        menu.add_command(label='Xóa đơn hàng', command=self.delete_order)
+        def popup(event):
+            try:
+                iid = tree.identify_row(event.y)
+                if iid:
+                    tree.selection_set(iid)
+                    menu.tk_popup(event.x_root, event.y_root)
+            finally:
+                try:
+                    menu.grab_release()
+                except Exception:
+                    pass
+        tree.bind('<Button-3>', popup)
+
+    def _status_tag(self, status):
+        st = (status or '').lower()
+        if st == 'completed':
+            return 'status_completed'
+        if st == 'cancelled':
+            return 'status_cancelled'
+        return 'status_pending'
+
+    def _apply_order_row_tags(self):
+        try:
+            self.order_tree.tag_configure('status_completed', background='#e8f5e9')
+            self.order_tree.tag_configure('status_cancelled', background='#ffebee')
+            self.order_tree.tag_configure('status_pending', background='#fff8e1')
+        except Exception:
+            pass
+
+    def _on_order_double_click(self, event):
+        self._open_order_detail_popup()
+
+    def _open_order_detail_popup(self):
+        if not hasattr(self, 'order_tree'):
+            return
+        sel = self.order_tree.selection()
+        if not sel:
+            return
+        iid = sel[0]
+        order_id = self.order_tree.item(iid)['values'][0]
+        order = self.order_manager.get_order(order_id)
+        if not order:
+            return
+        top = tk.Toplevel(self.root)
+        top.title(f'Đơn hàng #{order_id}')
+        top.geometry('560x600')
+        info = tk.Text(top, wrap='word', height=10)
+        info.pack(fill=tk.X, padx=10, pady=10)
+        created_at = order.get('created_at', '')
+        table_info = order.get('table_number') or '-'
+        assist = 'Có' if order.get('needs_assistance') else 'Không'
+        info.insert(tk.END, f"Mã đơn: {order_id}\n")
+        info.insert(tk.END, f"Khách hàng: {order.get('customer_name','')}\n")
+        info.insert(tk.END, f"Tổng tiền: {order.get('total_price',0):,} VNĐ\n")
+        info.insert(tk.END, f"Trạng thái: {order.get('status','')}\n")
+        info.insert(tk.END, f"Ngày đặt: {created_at}\n")
+        info.insert(tk.END, f"Bàn: {table_info}\n")
+        info.insert(tk.END, f"Gọi phục vụ: {assist}\n")
+        info.configure(state='disabled')
+        items_frame = ttk.LabelFrame(top, text='Sản phẩm', padding=8)
+        items_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=(0, 10))
+        cols = ("Sản phẩm", "SL", "Đơn giá", "Thành tiền")
+        tv = ttk.Treeview(items_frame, columns=cols, show='headings', height=12)
+        for c in cols:
+            tv.heading(c, text=c)
+        tv.column('Sản phẩm', width=260)
+        tv.column('SL', width=60)
+        tv.column('Đơn giá', width=120)
+        tv.column('Thành tiền', width=130)
+        vs = ttk.Scrollbar(items_frame, orient=tk.VERTICAL, command=tv.yview)
+        tv.configure(yscrollcommand=vs.set)
+        tv.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        vs.pack(side=tk.RIGHT, fill=tk.Y)
+        for it in order.get('items', []):
+            name = it.get('name', f"#{it.get('product_id','')}")
+            qty = it.get('quantity', 0)
+            price = it.get('price', 0)
+            total = (qty or 0) * (price or 0)
+            tv.insert('', tk.END, values=(name, qty, f"{price:,} VNĐ", f"{total:,} VNĐ"))
 
 def main():
     root = tk.Tk()

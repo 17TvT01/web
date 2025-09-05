@@ -1,4 +1,5 @@
 import mysql.connector
+import json
 from mysql.connector import Error
 
 class Database:
@@ -9,22 +10,23 @@ class Database:
         
     def connect(self):
         try:
-            # First try without password (XAMPP default)
-            try:
-                self.conn = mysql.connector.connect(
-                    host='localhost',
-                    user='root',
-                    password='mysql',
-                    charset='utf8mb4'
-                )
-            except Error:
-                # If failed, try with 'root' password
-                self.conn = mysql.connector.connect(
-                    host='localhost',
-                    user='root',
-                    password='root',
-                    charset='utf8mb4'
-                )
+            # Try common credential sets (prefer empty password for XAMPP)
+            last_error = None
+            for pwd in ['', 'mysql', 'root']:
+                try:
+                    self.conn = mysql.connector.connect(
+                        host='localhost',
+                        user='root',
+                        password=pwd,
+                        charset='utf8mb4'
+                    )
+                    break
+                except Error as e:
+                    last_error = e
+                    self.conn = None
+            if not self.conn:
+                # Re-raise the last error if connection failed for all attempts
+                raise last_error if last_error else Error("Unable to connect to MySQL with tried credentials")
             
             # Create cursor
             self.cursor = self.conn.cursor()
@@ -74,6 +76,18 @@ class Database:
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             ''')
+
+            # Ensure optional columns exist on products
+            try:
+                self.cursor.execute("DESCRIBE products")
+                product_columns = {row[0] for row in self.cursor.fetchall()}
+                if 'ai_keys' not in product_columns:
+                    # Store as TEXT (JSON-encoded array)
+                    self.cursor.execute("ALTER TABLE products ADD COLUMN ai_keys TEXT NULL")
+                    self.conn.commit()
+                    print("Added column 'ai_keys' to products table")
+            except Error as e:
+                print(f"Warning: Could not verify/alter products table for ai_keys column: {e}")
             
             # Create product_attributes table for filters
             self.cursor.execute('''
@@ -85,6 +99,95 @@ class Database:
                     FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
                 )
             ''')
+
+            # Optional backfill: populate products.ai_keys from product_attributes
+            try:
+                # Only run if ai_keys column exists
+                self.cursor.execute("DESCRIBE products")
+                product_columns = {row[0] for row in self.cursor.fetchall()}
+                if 'ai_keys' in product_columns:
+                    # Fetch all product ids
+                    self.cursor.execute("SELECT id FROM products")
+                    product_ids = [row[0] for row in self.cursor.fetchall()]
+                    for pid in product_ids:
+                        self.cursor.execute(
+                            "SELECT attribute_value FROM product_attributes WHERE product_id = %s AND attribute_type = %s",
+                            (pid, 'ai_keys')
+                        )
+                        keys = [row[0] for row in self.cursor.fetchall() if row and row[0]]
+                        # Only update if we have keys and the current column is NULL or different
+                        if keys:
+                            keys_json = json.dumps(sorted(list(set(keys))))
+                            # Check current value
+                            self.cursor.execute("SELECT ai_keys FROM products WHERE id = %s", (pid,))
+                            current = self.cursor.fetchone()
+                            current_val = current[0] if current else None
+                            if current_val != keys_json:
+                                self.cursor.execute("UPDATE products SET ai_keys = %s WHERE id = %s", (keys_json, pid))
+                    self.conn.commit()
+            except Error as e:
+                print(f"Warning: Could not backfill products.ai_keys: {e}")
+            
+            # Create orders table
+            self.cursor.execute('''
+                CREATE TABLE IF NOT EXISTS orders (
+                    id INT PRIMARY KEY,
+                    customer_name VARCHAR(255) NOT NULL,
+                    total_price DECIMAL(10, 2) NOT NULL,
+                    status ENUM('pending', 'completed', 'cancelled') DEFAULT 'pending',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+
+            # Ensure extended order columns exist
+            try:
+                self.cursor.execute("DESCRIBE orders")
+                order_columns = {row[0] for row in self.cursor.fetchall()}
+                alter_stmts = []
+                if 'order_type' not in order_columns:
+                    alter_stmts.append("ADD COLUMN order_type VARCHAR(20) NULL")
+                if 'payment_method' not in order_columns:
+                    alter_stmts.append("ADD COLUMN payment_method VARCHAR(20) NULL")
+                if 'table_number' not in order_columns:
+                    alter_stmts.append("ADD COLUMN table_number VARCHAR(50) NULL")
+                if 'needs_assistance' not in order_columns:
+                    alter_stmts.append("ADD COLUMN needs_assistance BOOLEAN DEFAULT FALSE")
+                if 'note' not in order_columns:
+                    alter_stmts.append("ADD COLUMN note TEXT NULL")
+                if 'customer_email' not in order_columns:
+                    alter_stmts.append("ADD COLUMN customer_email VARCHAR(255) NULL")
+                if 'email_receipt' not in order_columns:
+                    alter_stmts.append("ADD COLUMN email_receipt BOOLEAN DEFAULT FALSE")
+                if 'payment_status' not in order_columns:
+                    alter_stmts.append("ADD COLUMN payment_status ENUM('unpaid','paid') DEFAULT 'unpaid'")
+                if alter_stmts:
+                    stmt = "ALTER TABLE orders " + ", ".join(alter_stmts)
+                    self.cursor.execute(stmt)
+                    self.conn.commit()
+            except Error as e:
+                print(f"Warning: Could not alter orders table: {e}")
+            
+            # Create order_items table
+            self.cursor.execute('''
+                CREATE TABLE IF NOT EXISTS order_items (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    order_id INT,
+                    product_id INT,
+                    quantity INT,
+                    FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
+                    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+                )
+            ''')
+
+            # Ensure selected options column exists for order_items
+            try:
+                self.cursor.execute("DESCRIBE order_items")
+                item_columns = {row[0] for row in self.cursor.fetchall()}
+                if 'selected_options' not in item_columns:
+                    self.cursor.execute("ALTER TABLE order_items ADD COLUMN selected_options TEXT NULL")
+                    self.conn.commit()
+            except Error as e:
+                print(f"Warning: Could not alter order_items table: {e}")
 
             # Check if users table exists and has correct structure
             self.cursor.execute("SHOW TABLES LIKE 'users'")
@@ -119,14 +222,14 @@ class Database:
             print(f"Error creating tables: {e}")
             raise
 
-    def get_next_id(self):
+    def get_next_id(self, table='products'):
         try:
-            # Get list of all IDs
-            self.cursor.execute("SELECT id FROM products ORDER BY id")
+            # Get list of all IDs from specified table
+            self.cursor.execute(f"SELECT id FROM {table} ORDER BY id")
             ids = [row[0] for row in self.cursor.fetchall()]
             
             if not ids:
-                return 1  # First product
+                return 1  # First record
             
             # Find first gap in sequence
             expected_id = 1
@@ -139,7 +242,7 @@ class Database:
             return expected_id
             
         except Error as e:
-            print(f"Error getting next ID: {e}")
+            print(f"Error getting next ID for {table}: {e}")
             return None
 
     def reconnect_if_needed(self):

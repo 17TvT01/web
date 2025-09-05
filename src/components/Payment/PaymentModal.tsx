@@ -41,6 +41,11 @@ export const PaymentModal = () => {
         city: '',
     });
     const [items, setItems] = useState<CartItem[]>([]);
+    const [tableNumber, setTableNumber] = useState('');
+    const [needsAssistance, setNeedsAssistance] = useState(false);
+    const [sendInvoice, setSendInvoice] = useState(false);
+    const [email, setEmail] = useState('');
+    const [orderNote, setOrderNote] = useState('');
 
     useEffect(() => {
         const handleCartUpdate = (e: CustomEvent) => {
@@ -111,7 +116,14 @@ export const PaymentModal = () => {
                         street: details.street,
                         city: details.city
                     }
-                } : {})
+                } : {}),
+                ...(orderType === 'dine-in' ? {
+                    tableNumber: tableNumber.trim() || undefined,
+                    needsAssistance
+                } : {}),
+                note: orderNote.trim() || undefined,
+                emailReceipt: sendInvoice,
+                customerEmail: sendInvoice ? (email.trim() || undefined) : undefined
             };
 
             await paymentService.submitOrder(paymentDetails);
@@ -190,8 +202,16 @@ export const PaymentModal = () => {
                                         <div className="item-info">
                                             <span className="item-name">{item.name}</span>
                                             <span className="item-quantity">x{item.quantity}</span>
-                                        </div>
-                                        <span className="item-price">
+                                        </div>{item.selectedOptions && item.selectedOptions.length > 0 && (
+    <div className="item-options">
+        {item.selectedOptions.map(opt => (
+            <div key={`${opt.name}-${opt.value}`} className="item-option">
+                {opt.name}: {opt.value}
+            </div>
+        ))}
+    </div>
+)}
+<span className="item-price">
                                             {((item.onSale ? item.salePrice || item.price : item.price) * item.quantity).toLocaleString()}₫
                                         </span>
                                     </div>
@@ -232,13 +252,77 @@ export const PaymentModal = () => {
                                 </div>
                             )}
                         </div>
+
+                        {orderType === 'dine-in' && (
+                            <div className="summary-section">
+                                <h4>Thông tin tại quán</h4>
+                                <div className="form-group">
+                                    <label>Số bàn</label>
+                                    <input
+                                        type="text"
+                                        className="form-control"
+                                        value={tableNumber}
+                                        onChange={(e) => setTableNumber(e.target.value)}
+                                        placeholder="VD: B12"
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label>
+                                        <input
+                                            type="checkbox"
+                                            checked={needsAssistance}
+                                            onChange={(e) => setNeedsAssistance(e.target.checked)}
+                                        />
+                                        Gọi phục vụ
+                                    </label>
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="summary-section">
+                            <h4>Ghi chú đơn hàng & Hóa đơn</h4>
+                            <div className="form-group">
+                                <label>Ghi chú (tùy chọn)</label>
+                                <textarea
+                                    className="form-control"
+                                    rows={3}
+                                    value={orderNote}
+                                    onChange={(e) => setOrderNote(e.target.value)}
+                                    placeholder="VD: ít đường, chờ thêm 5 phút..."
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label>
+                                    <input
+                                        type="checkbox"
+                                        checked={sendInvoice}
+                                        onChange={(e) => setSendInvoice(e.target.checked)}
+                                    />
+                                    Gửi hóa đơn qua email
+                                </label>
+                            </div>
+                            {sendInvoice && (
+                                <div className="form-group">
+                                    <label>Email nhận hóa đơn</label>
+                                    <input
+                                        type="email"
+                                        className="form-control"
+                                        value={email}
+                                        onChange={(e) => setEmail(e.target.value)}
+                                        placeholder="you@example.com"
+                                        required={sendInvoice}
+                                    />
+                                </div>
+                            )}
+                        </div>
+
                     </div>
 
                     <div className="modal-footer">
                         <button type="button" className="cancel-btn" onClick={handleClose}>
                             Hủy
                         </button>
-                        <button type="submit" className="confirm-btn">
+                        <button type="submit" className="confirm-btn" disabled={sendInvoice && !email.trim()}>
                             Xác nhận
                         </button>
                     </div>

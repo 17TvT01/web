@@ -1,6 +1,9 @@
+import axios from 'axios';
 import { notificationService } from './notificationService';
 import { uiService } from './uiService';
 import { cartService } from './cartService';
+
+const API_BASE = (import.meta as any).env.VITE_API_BASE_URL || 'http://localhost:5000';
 
 interface PaymentDetails {
     orderType: 'dine-in' | 'takeaway';
@@ -12,94 +15,60 @@ interface PaymentDetails {
         city: string;
     };
     tableNumber?: string;
+    needsAssistance?: boolean;
+    note?: string;
+    emailReceipt?: boolean;
+    customerEmail?: string;
 }
 
 class PaymentService {
-    private async processPayment(details: PaymentDetails) {
-        try {
-            // Giả lập xử lý thanh toán
-            await new Promise(resolve => setTimeout(resolve, 2000));
+    private async createOrderInDatabase(details: PaymentDetails) {
+        // Prepare order payload for backend
+        const orderData = {
+            customer_name: details.address?.fullName || 'Customer',
+            items: cartService.getItems().map(item => ({
+                product_id: item.id,
+                quantity: item.quantity,
+                selected_options: item.selectedOptions || []
+            })),
+            total_price: cartService.getTotalPrice(),
+            status: 'pending',
+            order_type: details.orderType,
+            payment_method: details.paymentMethod,
+            table_number: details.tableNumber,
+            needs_assistance: !!details.needsAssistance,
+            note: details.note,
+            customer_email: details.customerEmail,
+            email_receipt: !!details.emailReceipt,
+            payment_status: 'paid',
+        };
 
-            // Lưu thông tin đơn hàng
-            const order = {
-                id: Date.now(),
-                items: cartService.getItems(),
-                total: cartService.getTotalPrice(),
-                ...details,
-                status: 'processing',
-                createdAt: new Date().toISOString()
-            };
-
-            // Lưu vào localStorage
-            const orders = JSON.parse(localStorage.getItem('orders') || '[]');
-            orders.push(order);
-            localStorage.setItem('orders', JSON.stringify(orders));
-
-            // Clear giỏ hàng
-            cartService.clearCart();
-
-            // Thông báo thành công
-            notificationService.show('Đặt hàng thành công!', {
-                type: 'success',
-                duration: 5000
-            });
-
-            return order;
-
-        } catch (error) {
-            console.error('Payment error:', error);
-            notificationService.show('Thanh toán thất bại. Vui lòng thử lại!', {
-                type: 'error'
-            });
-            throw error;
-        }
-    }
-
-    async startPaymentFlow() {
-        // Bắt đầu quy trình thanh toán
-        try {
-            // 1. Hiển thị modal chọn hình thức dùng
-            uiService.showForm('orderType');
-
-        } catch (error) {
-            console.error('Payment flow error:', error);
-            notificationService.show('Có lỗi xảy ra. Vui lòng thử lại!', {
-                type: 'error'
-            });
-        }
+        const response = await axios.post(`${API_BASE}/orders`, orderData);
+        if (response.data.order_id) return response.data.order_id as number;
+        throw new Error('Failed to create order');
     }
 
     async submitOrder(details: PaymentDetails) {
-        try {
-            // Xử lý thanh toán
-            const order = await this.processPayment(details);
+        const orderId = await this.createOrderInDatabase(details);
 
-            // Đóng tất cả modal
-            uiService.hideAllOverlays();
+        // Clear cart and close overlays
+        cartService.clearCart();
+        const tableInfo = details.orderType === 'dine-in' && details.tableNumber ? ` - Bàn: ${details.tableNumber}` : '';
+        notificationService.show(`Đặt hàng thành công! Mã đơn hàng: #${orderId}${tableInfo}`, {
+            type: 'success',
+            duration: 5000,
+        });
+        uiService.hideAllOverlays();
 
-            // Thông báo chi tiết
-            if (details.orderType === 'dine-in') {
-                notificationService.show(`Đơn hàng #${order.id} đang được xử lý. Vui lòng đợi tại bàn ${details.tableNumber}`, {
-                    type: 'info',
-                    duration: 5000
-                });
-            } else {
-                notificationService.show(`Đơn hàng #${order.id} đang được chuẩn bị và sẽ giao đến bạn sớm nhất!`, {
-                    type: 'info',
-                    duration: 5000
-                });
-            }
+        // Event for any listeners
+        window.dispatchEvent(new CustomEvent('order:created', { detail: { orderId, details } }));
+        return orderId;
+    }
 
-            return order;
-
-        } catch (error) {
-            console.error('Submit order error:', error);
-            notificationService.show('Không thể hoàn tất đơn hàng. Vui lòng thử lại!', {
-                type: 'error'
-            });
-            throw error;
-        }
+    async startPaymentFlow() {
+        uiService.showForm('payment');
     }
 }
 
 export const paymentService = new PaymentService();
+

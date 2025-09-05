@@ -30,12 +30,12 @@ export const Cart = () => {
         uiService.hideAllOverlays();
     };
 
-    const handleQuantityChange = (productId: number, newQuantity: number) => {
-        cartService.updateQuantity(productId, newQuantity);
+    const handleQuantityChange = (uniqueId: string, newQuantity: number) => {
+        cartService.updateQuantity(uniqueId, newQuantity);
     };
 
-    const handleRemoveItem = (productId: number) => {
-        cartService.removeItem(productId);
+    const handleRemoveItem = (uniqueId: string) => {
+        cartService.removeItem(uniqueId);
     };
 
     const handleOrderTypeSelect = (type: 'dine-in' | 'takeaway') => {
@@ -69,10 +69,19 @@ export const Cart = () => {
                         </div>
                     ) : (
                         items.map(item => (
-                            <div key={item.id} className="cart-item">
+                            <div key={item.uniqueId} className="cart-item">
                                 <img src={item.image} alt={item.name} />
                                 <div className="item-details">
                                     <h4>{item.name}</h4>
+                                    {item.selectedOptions && item.selectedOptions.length > 0 && (
+                                        <div className="item-options">
+                                            {item.selectedOptions.map(opt => (
+                                                <div key={`${opt.name}-${opt.value}`} className="item-option">
+                                                    {opt.name}: {opt.value}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
                                     <div className="item-price">
                                         {item.onSale ? (
                                             <>
@@ -90,14 +99,14 @@ export const Cart = () => {
                                     <div className="quantity-controls">
                                         <button 
                                             className="quantity-btn"
-                                            onClick={() => handleQuantityChange(item.id, item.quantity - 1)}
+                                            onClick={() => handleQuantityChange(item.uniqueId, item.quantity - 1)}
                                         >
                                             <i className="fas fa-minus"></i>
                                         </button>
                                         <span>{item.quantity}</span>
                                         <button 
                                             className="quantity-btn"
-                                            onClick={() => handleQuantityChange(item.id, item.quantity + 1)}
+                                            onClick={() => handleQuantityChange(item.uniqueId, item.quantity + 1)}
                                         >
                                             <i className="fas fa-plus"></i>
                                         </button>
@@ -105,7 +114,7 @@ export const Cart = () => {
                                 </div>
                                 <button 
                                     className="remove-item"
-                                    onClick={() => handleRemoveItem(item.id)}
+                                    onClick={() => handleRemoveItem(item.uniqueId)}
                                 >
                                     <i className="fas fa-trash"></i>
                                 </button>
