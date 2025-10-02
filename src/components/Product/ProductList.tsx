@@ -44,17 +44,31 @@ export const ProductList = ({ category, filters, sortBy, searchQuery }: Props) =
                         
                         return Object.entries(filters).every(([filterType, selectedValues]) => {
                             if (selectedValues.length === 0) return true;
-                            
-                            const productFilters = product.filters as any;
-                            if (!productFilters) return false;
 
-                            // Check if product matches any of the selected values for this filter type
-                            if (Array.isArray(productFilters[filterType])) {
-                                return selectedValues.some(value => 
-                                    productFilters[filterType].includes(value)
-                                );
+                            const productFilters = product.filters as Record<string, string[] | string | undefined> | undefined;
+                            const filtersAiKeys = productFilters && Array.isArray(productFilters['ai_keys'])
+                                ? (productFilters['ai_keys'] as string[])
+                                : undefined;
+                            const aiKeys = product.aiKeys || filtersAiKeys;
+
+                            if (!productFilters && !aiKeys) return false;
+
+                            const candidate = productFilters?.[filterType];
+                            if (Array.isArray(candidate)) {
+                                if (selectedValues.some(value => candidate.includes(value))) {
+                                    return true;
+                                }
+                            } else if (typeof candidate === 'string' && candidate.trim()) {
+                                if (selectedValues.includes(candidate)) {
+                                    return true;
+                                }
                             }
-                            return selectedValues.includes(productFilters[filterType]);
+
+                            if (Array.isArray(aiKeys)) {
+                                return selectedValues.some(value => aiKeys.includes(value));
+                            }
+
+                            return false;
                         });
                     });
                 }

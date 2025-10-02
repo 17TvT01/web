@@ -15,6 +15,8 @@ export interface DrinkFilters {
     type?: string[];      // Loại nước
 }
 
+export type ProductFilterMap = Record<string, string[]>;
+
 // Filter Options Constants
 export const CAKE_FILTERS = {
     occasion: [
@@ -89,13 +91,14 @@ export interface SelectedOption {
 
 // Product Interface
 export interface Product {
-    id: number;
+    id: string;
     name: string;
     price: number;
     image: string;
     category: MainCategory;
     subCategory?: string;
-    filters?: CakeFilters | FoodFilters | DrinkFilters;
+    filters?: ProductFilterMap;
+    aiKeys?: string[];
     options?: ProductOption[];
     description?: string;
     onSale?: boolean;

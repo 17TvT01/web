@@ -945,35 +945,10 @@ class StoreGUI:
                     price = it.get('price', 0) or 0
                     # Build options string
                     opts = it.get('selected_options')
+                    fragments = self._format_option_fragments(opts)
                     opts_text = ''
-                    if isinstance(opts, dict):
-                        parts = []
-                        for k, v in opts.items():
-                            if isinstance(v, list):
-                                parts.append(f"{k}: {', '.join(map(str, v))}")
-                            else:
-                                parts.append(f"{k}: {v}")
-                        if parts:
-                            opts_text = ' — ' + '; '.join(parts)
-                    elif isinstance(opts, list):
-                        parts = []
-                        for v in opts:
-                            if isinstance(v, dict):
-                                # Prefer nested label/value if present
-                                cand = v.get('label') or v.get('value')
-                                if cand is not None:
-                                    parts.append(str(cand))
-                                else:
-                                    # Fallback: join non-empty values
-                                    inner_vals = [str(val) for key, val in v.items() if key not in ('label','value')]
-                                    if inner_vals:
-                                        parts.append(', '.join(inner_vals))
-                            else:
-                                parts.append(str(v))
-                        if parts:
-                            opts_text = ' — ' + '; '.join(parts)
-                    elif isinstance(opts, str) and opts.strip():
-                        opts_text = ' — ' + opts.strip()
+                    if fragments:
+                        opts_text = ' - ' + '; '.join(fragments)
                     label = name + opts_text
                     try:
                         total = (qty or 0) * float(price)
@@ -983,6 +958,94 @@ class StoreGUI:
             except Exception:
                 pass
             
+
+    def _format_option_fragments(self, opts):
+        """Normalize assorted option payloads into readable label/value fragments."""
+        fragments = []
+
+        def push(label, value=None):
+            label_text = str(label).strip() if label is not None else ''
+            value_text = '' if value is None else str(value).strip()
+            if label_text and value_text:
+                fragments.append(f"{label_text}: {value_text}")
+            elif label_text:
+                fragments.append(label_text)
+            elif value_text:
+                fragments.append(value_text)
+
+        def handle_node(node):
+            if isinstance(node, dict):
+                base_label = node.get('label') or node.get('name')
+                base_value = node.get('value')
+                if base_label is not None or base_value not in (None, ''):
+                    push(base_label, base_value)
+
+                name_map = {}
+                value_map = {}
+                for key, value in node.items():
+                    if key in ('label', 'name', 'value'):
+                        continue
+                    lower = key.lower()
+                    if lower.startswith('name'):
+                        name_map[lower[4:]] = value
+                        continue
+                    if lower.startswith('value'):
+                        value_map[lower[5:]] = value
+                        continue
+                    if isinstance(value, (dict, list)):
+                        handle_node(value)
+                    else:
+                        push(key, value)
+
+                for suffix, label in name_map.items():
+                    push(label, value_map.pop(suffix, None))
+                for leftover in value_map.values():
+                    push(None, leftover)
+            elif isinstance(node, list):
+                pending_label = None
+                for item in node:
+                    if isinstance(item, (dict, list)):
+                        handle_node(item)
+                        continue
+                    text_item = str(item).strip()
+                    if not text_item:
+                        continue
+                    lower = text_item.lower()
+                    if lower.startswith('name:'):
+                        pending_label = text_item.split(':', 1)[1].strip()
+                    elif lower.startswith('value:'):
+                        value_text = text_item.split(':', 1)[1].strip()
+                        if pending_label:
+                            push(pending_label, value_text)
+                            pending_label = None
+                        else:
+                            push(None, value_text)
+                    else:
+                        if pending_label:
+                            push(pending_label, text_item)
+                            pending_label = None
+                        else:
+                            push(None, text_item)
+                if pending_label:
+                    push(pending_label)
+            elif isinstance(node, str):
+                text_item = node.strip()
+                if not text_item:
+                    return
+                lower = text_item.lower()
+                if lower.startswith('name:') or lower.startswith('value:'):
+                    _, rest = text_item.split(':', 1)
+                    rest = rest.strip()
+                    if rest:
+                        push(None, rest)
+                else:
+                    push(None, text_item)
+            elif node not in (None, ''):
+                push(None, node)
+
+        handle_node(opts)
+        return fragments
+
     def display_order_details(self, order):
         """Display order details in right panel with enhanced format"""
         # Clear order info
@@ -1014,26 +1077,9 @@ class StoreGUI:
             for it in order.get('items', []):
                 name = it.get('name', f"#{it.get('product_id','')}")
                 opts = it.get('selected_options')
-                if not opts:
-                    continue
-                parts = []
-                if isinstance(opts, dict):
-                    for k, v in opts.items():
-                        if isinstance(v, list):
-                            parts.append(f"{k}: {', '.join(map(str, v))}")
-                        else:
-                            parts.append(f"{k}: {v}")
-                elif isinstance(opts, list):
-                    for v in opts:
-                        if isinstance(v, dict):
-                            for k2, v2 in v.items():
-                                parts.append(f"{k2}: {v2}")
-                        else:
-                            parts.append(str(v))
-                elif isinstance(opts, str) and opts.strip():
-                    parts.append(opts.strip())
-                if parts:
-                    opts_lines.append(f"- {name}: " + "; ".join(parts))
+                fragments = self._format_option_fragments(opts)
+                if fragments:
+                    opts_lines.append(f"- {name}: " + "; ".join(fragments))
             if opts_lines:
                 ttk.Label(self.order_info_frame, text="Tùy chọn:", font=('Helvetica', 10, 'bold')).pack(anchor=tk.W, pady=(6,0))
                 ttk.Label(self.order_info_frame, text="\n".join(opts_lines), justify=tk.LEFT).pack(anchor=tk.W)
@@ -1117,33 +1163,10 @@ class StoreGUI:
                         price = it.get('price', 0) or 0
                         # Build options string
                         opts = it.get('selected_options')
+                        fragments = self._format_option_fragments(opts)
                         opts_text = ''
-                        if isinstance(opts, dict):
-                            parts = []
-                            for k, v in opts.items():
-                                if isinstance(v, list):
-                                    parts.append(f"{k}: {', '.join(map(str, v))}")
-                                else:
-                                    parts.append(f"{k}: {v}")
-                            if parts:
-                                opts_text = ' — ' + '; '.join(parts)
-                        elif isinstance(opts, list):
-                            parts = []
-                            for v in opts:
-                                if isinstance(v, dict):
-                                    cand = v.get('label') or v.get('value')
-                                    if cand is not None:
-                                        parts.append(str(cand))
-                                    else:
-                                        inner_vals = [str(val) for key, val in v.items() if key not in ('label','value')]
-                                        if inner_vals:
-                                            parts.append(', '.join(inner_vals))
-                                else:
-                                    parts.append(str(v))
-                            if parts:
-                                opts_text = ' — ' + '; '.join(parts)
-                        elif isinstance(opts, str) and opts.strip():
-                            opts_text = ' — ' + opts.strip()
+                        if fragments:
+                            opts_text = ' - ' + '; '.join(fragments)
                         label = name + opts_text
                         try:
                             total = (qty or 0) * float(price)

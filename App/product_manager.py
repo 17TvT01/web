@@ -1,6 +1,7 @@
 from database import Database
 from mysql.connector import Error
 import os
+import json
 
 class ProductManager:
     def __init__(self):
@@ -26,6 +27,78 @@ class ProductManager:
             attributes['keywords'] = keywords[:5]  # Giới hạn 5 từ khóa
             
         return attributes
+
+    def _parse_ai_keys_field(self, raw):
+        """Return normalized list of ai_keys from assorted storage formats."""
+        keys = []
+        if not raw:
+            return keys
+        if isinstance(raw, (list, tuple, set)):
+            for item in raw:
+                item_str = str(item).strip()
+                if item_str:
+                    keys.append(item_str)
+            return keys
+        if isinstance(raw, str):
+            candidate = raw.strip()
+            if not candidate:
+                return keys
+            try:
+                parsed = json.loads(candidate)
+            except json.JSONDecodeError:
+                for token in candidate.replace(';', ',').split(','):
+                    token = token.strip()
+                    if token:
+                        keys.append(token)
+                if not keys:
+                    keys.append(candidate)
+                return keys
+            else:
+                if isinstance(parsed, str):
+                    parsed = [parsed]
+                if isinstance(parsed, (list, tuple, set)):
+                    for item in parsed:
+                        item_str = str(item).strip()
+                        if item_str:
+                            keys.append(item_str)
+                return keys
+        item_str = str(raw).strip()
+        if item_str:
+            keys.append(item_str)
+        return keys
+
+    def _attach_filters(self, product):
+        """Populate product['filters'] with normalized ai_keys when available."""
+        ai_keys = set()
+
+        attrs = product.get('attributes')
+        if isinstance(attrs, dict):
+            raw_attr_keys = attrs.get('ai_keys')
+            for item in self._parse_ai_keys_field(raw_attr_keys):
+                ai_keys.add(item)
+
+        if 'ai_keys' in product:
+            for item in self._parse_ai_keys_field(product.get('ai_keys')):
+                ai_keys.add(item)
+
+        if ai_keys:
+            product['filters'] = {'ai_keys': sorted(ai_keys)}
+        elif 'filters' in product:
+            product['filters'].pop('ai_keys', None)
+            if not product['filters']:
+                product.pop('filters', None)
+        return product
+
+    def _update_product_ai_keys(self, product_id, attributes):
+        """Persist ai_keys list to products.ai_keys column for faster lookups."""
+        try:
+            keys = []
+            if isinstance(attributes, dict) and 'ai_keys' in attributes:
+                keys = [item.strip() for item in self._parse_ai_keys_field(attributes.get('ai_keys')) if item.strip()]
+            keys_json = json.dumps(sorted(set(keys))) if keys else None
+            self.db.cursor.execute("UPDATE products SET ai_keys = %s WHERE id = %s", (keys_json, product_id))
+        except Error as e:
+            print(f"Warning: Could not update ai_keys for product {product_id}: {e}")
 
     def add_product(self, name, price, category, quantity=0, description=None, image_url=None, attributes=None):
         try:
@@ -75,7 +148,8 @@ class ProductManager:
                 
                 if attr_values:
                     self.db.cursor.executemany(attr_sql, attr_values)
-            
+
+            self._update_product_ai_keys(next_id, attributes)
             self.db.conn.commit()
             print(f"Product added successfully with ID: {next_id}")
             return next_id
@@ -164,7 +238,13 @@ class ProductManager:
                 
                 if attr_values:
                     self.db.cursor.executemany(attr_sql, attr_values)
-            
+            else:
+                self.db.cursor.execute(
+                    "DELETE FROM product_attributes WHERE product_id = %s",
+                    (product_id,)
+                )
+
+            self._update_product_ai_keys(product_id, attributes)
             self.db.conn.commit()
             print(f"Product {product_id} updated successfully")
             return True
@@ -208,7 +288,8 @@ class ProductManager:
                         attrs[attr_type] = []
                     attrs[attr_type].append(attr_value)
                 product['attributes'] = attrs
-            
+
+            self._attach_filters(product)
             return product
             
         except Error as e:
@@ -258,13 +339,52 @@ class ProductManager:
                             attrs[attr_type] = []
                         attrs[attr_type].append(attr_value)
                     product['attributes'] = attrs
-                    
+
+                self._attach_filters(product)
                 products.append(product)
                 
             return products
             
         except Error as e:
             print(f"Lỗi khi lấy sản phẩm từ database: {e}")
+            return []
+
+    def get_filter_options(self, category=None):
+        """Return sorted unique ai_keys available for the given category."""
+        try:
+            self.ensure_connection()
+            keys = set()
+
+            attr_sql = (
+                "SELECT DISTINCT pa.attribute_value "
+                "FROM product_attributes pa "
+                "JOIN products p ON pa.product_id = p.id "
+                "WHERE pa.attribute_type = %s"
+            )
+            params = ['ai_keys']
+            if category:
+                attr_sql += " AND p.category = %s"
+                params.append(category)
+            self.db.cursor.execute(attr_sql, tuple(params))
+            for (value,) in self.db.cursor.fetchall():
+                value = (value or '').strip()
+                if value:
+                    keys.add(value)
+
+            col_sql = "SELECT ai_keys FROM products"
+            col_params = []
+            if category:
+                col_sql += " WHERE category = %s"
+                col_params.append(category)
+            self.db.cursor.execute(col_sql, tuple(col_params))
+            for (raw,) in self.db.cursor.fetchall():
+                for item in self._parse_ai_keys_field(raw):
+                    if item:
+                        keys.add(item)
+
+            return sorted(keys)
+        except Error as e:
+            print(f"Error fetching filter options: {e}")
             return []
 
     def delete_product(self, product_id):
@@ -334,7 +454,8 @@ class ProductManager:
                             attrs[attr_type] = []
                         attrs[attr_type].append(attr_value)
                     product['attributes'] = attrs
-                    
+
+                self._attach_filters(product)
                 products.append(product)
                 
             return products

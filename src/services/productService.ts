@@ -1,4 +1,4 @@
-import { Product, Filter, SearchResult } from '../types';
+import { Product, Filter, SearchResult, CAKE_FILTERS, FOOD_FILTERS, DRINK_FILTERS, ProductFilterMap, MainCategory } from '../types';
 
 class ProductService {
     private products: Product[] = [];
@@ -22,30 +22,102 @@ class ProductService {
 
             // Map backend product data to frontend Product type
             this.products = data.map((p: any) => {
-                // Build filters object from attributes array and ai_keys (if provided)
-                const baseFilters: any = Array.isArray(p.attributes)
-                    ? p.attributes.reduce((acc: any, attr: any) => {
-                        if (!acc[attr.type]) acc[attr.type] = [];
-                        acc[attr.type].push(attr.value);
-                        return acc;
-                    }, {})
-                    : {};
-                if (Array.isArray(p.ai_keys)) {
-                    baseFilters['ai_keys'] = [...new Set([...(baseFilters['ai_keys'] || []), ...p.ai_keys])];
+                const filterAccumulator: ProductFilterMap = {};
+
+                const addFilterValue = (key: string, value: string) => {
+                    const trimmedKey = key.trim();
+                    const trimmedValue = value.trim();
+                    if (!trimmedKey || !trimmedValue) return;
+                    if (!filterAccumulator[trimmedKey]) {
+                        filterAccumulator[trimmedKey] = [];
+                    }
+                    if (!filterAccumulator[trimmedKey].includes(trimmedValue)) {
+                        filterAccumulator[trimmedKey].push(trimmedValue);
+                    }
+                };
+
+                const aiKeySet = new Set<string>();
+                const addAiKey = (value: any) => {
+                    const text = String(value ?? '').trim();
+                    if (text) {
+                        aiKeySet.add(text);
+                    }
+                };
+
+                if (Array.isArray(p.attributes)) {
+                    p.attributes.forEach((attr: any) => {
+                        const type = typeof attr.type === 'string' ? attr.type : attr?.attribute_type;
+                        const value = attr?.value ?? attr?.attribute_value;
+                        const typeKey = typeof type === 'string' ? type.trim() : '';
+                        const valueText = value !== undefined && value !== null ? String(value).trim() : '';
+                        if (!typeKey || !valueText) {
+                            return;
+                        }
+
+                        if (typeKey === 'ai_keys') {
+                            addAiKey(valueText);
+                        } else {
+                            addFilterValue(typeKey, valueText);
+                        }
+                    });
                 }
 
+                if (Array.isArray(p.ai_keys)) {
+                    p.ai_keys.forEach(addAiKey);
+                } else if (typeof p.ai_keys === 'string' && p.ai_keys.trim()) {
+                    try {
+                        const parsed = JSON.parse(p.ai_keys);
+                        if (Array.isArray(parsed)) {
+                            parsed.forEach(addAiKey);
+                        } else {
+                            addAiKey(parsed);
+                        }
+                    } catch {
+                        addAiKey(p.ai_keys);
+                    }
+                }
+
+                const normalizedCategory = typeof p.category === 'string'
+                    ? p.category.toLowerCase()
+                    : 'all';
+                const categoryMap: Record<string, Record<string, string[]>> = {
+                    cake: CAKE_FILTERS,
+                    food: FOOD_FILTERS,
+                    drink: DRINK_FILTERS,
+                };
+                const categoryFilters = categoryMap[normalizedCategory] || null;
+
+                const aiKeyList = Array.from(aiKeySet);
+                if (aiKeyList.length) {
+                    filterAccumulator['ai_keys'] = aiKeyList;
+                }
+
+                if (categoryFilters) {
+                    Object.entries(categoryFilters).forEach(([filterKey, options]) => {
+                        options
+                            .filter(option => aiKeySet.has(option))
+                            .forEach(option => addFilterValue(filterKey, option));
+                    });
+                }
+
+                const category: MainCategory = ['cake', 'drink', 'food'].includes(normalizedCategory)
+                    ? (normalizedCategory as MainCategory)
+                    : 'all';
+                const price = typeof p.price === 'number' ? p.price : Number(p.price) || 0;
+
                 return ({
-                id: p.id.toString(),
-                name: p.name,
-                price: p.price,
-                image: p.image_url || '/images/default-product.jpg',
-                category: p.category.toLowerCase(), // Đảm bảo category được chuyển thành chữ thường
-                rating: p.rating || 0,
-                filters: baseFilters,
-                inStock: p.quantity > 0,
-                onSale: false,
-                salePrice: null,
-                isNew: false
+                    id: String(p.id),
+                    name: p.name,
+                    price,
+                    image: p.image_url || '/images/default-product.jpg',
+                    category,
+                    rating: p.rating || 0,
+                    filters: Object.keys(filterAccumulator).length ? filterAccumulator : undefined,
+                    aiKeys: aiKeyList,
+                    inStock: (p.quantity ?? 0) > 0,
+                    onSale: false,
+                    salePrice: null,
+                    isNew: false
                 });
             });
         } catch (error) {
