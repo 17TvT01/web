@@ -1,3 +1,10 @@
+const EMPTY_TEMPLATE = `
+    <div class="empty-notifications">
+        <i class="fas fa-bell-slash"></i>
+        <p>Không có thông báo</p>
+    </div>
+`;
+
 type NotificationType = 'info' | 'success' | 'warning' | 'error';
 type NotificationData = { type: NotificationType; duration?: number };
 
@@ -7,7 +14,6 @@ class NotificationService {
     initialize() {
         this.container = document.querySelector('.notification-dropdown');
 
-        // Close notification when clicking close button
         const closeBtn = document.querySelector('.close-notifications');
         if (closeBtn) {
             closeBtn.addEventListener('click', () => {
@@ -18,13 +24,23 @@ class NotificationService {
         }
     }
 
+    private ensureEmptyState(notifications: Element) {
+        if (!notifications.querySelector('.notification-item')) {
+            notifications.innerHTML = EMPTY_TEMPLATE;
+        }
+    }
+
     show(message: string, data: NotificationData) {
         const { type = 'info', duration = 3000 } = data;
 
-        // Add notification to dropdown
         if (this.container) {
             const notifications = this.container.querySelector('.notification-items');
             if (notifications) {
+                const emptyState = notifications.querySelector('.empty-notifications');
+                if (emptyState) {
+                    emptyState.remove();
+                }
+
                 const notification = document.createElement('div');
                 notification.className = `notification-item ${type}`;
                 notification.innerHTML = `
@@ -38,41 +54,37 @@ class NotificationService {
                         <p>${message}</p>
                         <span class="time">Vừa xong</span>
                     </div>
+                    <button class="notification-actions">
+                        <i class="fas fa-ellipsis-v"></i>
+                    </button>
                 `;
                 notifications.insertBefore(notification, notifications.firstChild);
 
-                // Update timestamp for old notifications
                 const oldNotifications = notifications.querySelectorAll('.notification-item');
                 oldNotifications.forEach((notif, index) => {
-                    if (index > 0) {
-                        const time = notif.querySelector('.time');
-                        if (time) {
-                            time.textContent = index === 1 ? '1 phút trước' : `${index} phút trước`;
-                        }
+                    const time = notif.querySelector('.time');
+                    if (time) {
+                        time.textContent = index
+                            ? `${index} phút trước`
+                            : 'Vừa xong';
                     }
                 });
 
-                // Remove old notifications if too many
                 if (oldNotifications.length > 5) {
                     notifications.removeChild(oldNotifications[oldNotifications.length - 1]);
                 }
 
-                // Show notification dropdown briefly
-                this.container.classList.add('active');
-                const overlay = document.querySelector('.dropdown-overlay');
-                overlay?.classList.add('active');
-
-                // Auto hide after duration
-                setTimeout(() => {
-                    if (!this.container?.contains(document.activeElement)) {
-                        this.container?.classList.remove('active');
-                        overlay?.classList.remove('active');
-                    }
-                }, duration);
+                const actionsButton = notification.querySelector('.notification-actions');
+                if (actionsButton) {
+                    actionsButton.addEventListener('click', (event) => {
+                        event.stopPropagation();
+                        notification.remove();
+                        this.ensureEmptyState(notifications);
+                    });
+                }
             }
         }
 
-        // Also show toast notification
         const toast = document.createElement('div');
         toast.className = `toast-notification ${type}`;
         toast.innerHTML = `
@@ -86,13 +98,10 @@ class NotificationService {
         `;
 
         document.body.appendChild(toast);
-
-        // Trigger animation
         requestAnimationFrame(() => {
             toast.classList.add('show');
         });
 
-        // Remove after duration
         setTimeout(() => {
             toast.classList.remove('show');
             setTimeout(() => {
@@ -102,17 +111,16 @@ class NotificationService {
     }
 
     clearAll() {
-        if (this.container) {
-            const notifications = this.container.querySelector('.notification-items');
-            if (notifications) {
-                notifications.innerHTML = `
-                    <div class="empty-notifications">
-                        <i class="fas fa-bell-slash"></i>
-                        <p>Không có thông báo</p>
-                    </div>
-                `;
-            }
+        if (!this.container) {
+            return;
         }
+
+        const notifications = this.container.querySelector('.notification-items');
+        if (!notifications) {
+            return;
+        }
+
+        notifications.innerHTML = EMPTY_TEMPLATE;
     }
 }
 

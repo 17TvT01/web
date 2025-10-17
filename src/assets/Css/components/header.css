@@ -1,4 +1,4 @@
-/* Header */
+﻿/* Header */
 header {
     background: white;
     padding: 1rem 2rem;
@@ -16,8 +16,16 @@ header {
 
 /* Logo */
 .logo {
-    width: 120px;
-    height: 40px;
+    width: 160px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+}
+
+.logo a {
+    display: inline-flex;
+    align-items: center;
+    height: 100%;
 }
 
 .logo img {

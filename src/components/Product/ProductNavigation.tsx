@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { MainCategory } from '../../types';
 import '../../assets/css/components/product-navigation.css';
 
@@ -27,9 +27,6 @@ export const ProductNavigation: React.FC<Props> = ({ activeCategory, onCategoryC
                         >
                             <i className={category.icon}></i>
                             <span>{category.label}</span>
-                            {activeCategory === category.id && (
-                                <div className="active-indicator"></div>
-                            )}
                         </button>
                     ))}
                 </div>
@@ -37,3 +34,4 @@ export const ProductNavigation: React.FC<Props> = ({ activeCategory, onCategoryC
         </nav>
     );
 };
+

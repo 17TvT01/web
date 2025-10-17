@@ -80,13 +80,6 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
         return total * quantity;
     };
 
-    // Mock reviews data - in real app, this would come from props or API
-    const mockReviews = [
-        { id: 1, user: "Nguyễn Văn A", rating: 5, comment: "Sản phẩm rất ngon, giao hàng nhanh!" },
-        { id: 2, user: "Trần Thị B", rating: 4, comment: "Hương vị ổn, sẽ mua lại." },
-        { id: 3, user: "Lê Văn C", rating: 5, comment: "Tuyệt vời, rất hài lòng!" },
-    ];
-
     const renderStars = (rating: number) => {
         return Array.from({ length: 5 }, (_, i) => (
             <span key={i} className={`star ${i < rating ? 'filled' : ''}`}>★</span>
@@ -110,15 +103,6 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                                 <span className="rating-text">
                                     {product.rating ? `${product.rating}/5` : 'Chưa có đánh giá'}
                                 </span>
-                            </div>
-                            <div className="reviews-list">
-                                {mockReviews.map(review => (
-                                    <div key={review.id} className="review-item">
-                                        <div className="review-user">{review.user}</div>
-                                        <div className="review-rating">{renderStars(review.rating)}</div>
-                                        <div className="review-comment">{review.comment}</div>
-                                    </div>
-                                ))}
                             </div>
                         </div>
 

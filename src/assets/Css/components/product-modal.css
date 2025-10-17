@@ -1,4 +1,4 @@
-/* Product Detail Modal Styles */
+﻿/* Product Detail Modal Styles */
 .modal-overlay {
     position: fixed;
     top: 0;
@@ -57,8 +57,8 @@
 }
 
 .modal-close:hover {
-    background-color: #f3f4f6;
-    color: #374151;
+    background-color: #ffe5e5;
+    color: #1f2937;
 }
 
 .product-detail {
@@ -109,7 +109,7 @@
 
 
 .product-detail-description {
-    color: #6b7280;
+    color: #525252;
     margin-bottom: 24px;
     line-height: 1.6;
 }
@@ -130,7 +130,7 @@
     font-size: 20px;
     font-weight: 700;
     margin-bottom: 16px;
-    color: #374151;
+    color: #1f2937;
 }
 
 
@@ -142,7 +142,7 @@
     font-size: 16px;
     font-weight: 500;
     margin-bottom: 8px;
-    color: #374151;
+    color: #1f2937;
 }
 
 .radio-options,
@@ -182,7 +182,7 @@
     font-size: 16px;
     font-weight: 600;
     margin-bottom: 8px;
-    color: #374151;
+    color: #1f2937;
 }
 
 .quantity-controls {
@@ -206,8 +206,8 @@
 }
 
 .quantity-btn:hover:not(:disabled) {
-    background-color: #f3f4f6;
-    border-color: #9ca3af;
+    background-color: #ffe5e5;
+    border-color: #fca5a5;
 }
 
 .quantity-btn:disabled {
@@ -220,7 +220,7 @@
     text-align: center;
     font-weight: 600;
     font-size: 16px;
-    color: #374151;
+    color: #1f2937;
 }
 
 /* Rating Styles */
@@ -232,7 +232,7 @@
     font-size: 16px;
     font-weight: 600;
     margin-bottom: 8px;
-    color: #374151;
+    color: #1f2937;
 }
 
 .rating-display {
@@ -247,12 +247,12 @@
 }
 
 .star.filled {
-    color: #fbbf24;
+    color: #f97316;
 }
 
 .rating-text {
     font-size: 14px;
-    color: #6b7280;
+    color: #525252;
 }
 
 /* Description Section */
@@ -264,11 +264,11 @@
     font-size: 16px;
     font-weight: 600;
     margin-bottom: 8px;
-    color: #374151;
+    color: #1f2937;
 }
 
 .product-detail-description {
-    color: #6b7280;
+    color: #525252;
     line-height: 1.6;
     margin-bottom: 0;
 }
@@ -278,14 +278,14 @@
     bottom: 0;
     background-color: white;
     padding: 16px 0;
-    border-top: 1px solid #e5e7eb;
+    border-top: 1px solid #f9dada;
     margin-top: 24px;
 }
 
 .add-to-cart-button {
     width: 100%;
     padding: 12px 24px;
-    background-color: #3b82f6;
+    background-color: #ef4444;
     color: white;
     border: none;
     border-radius: 8px;
@@ -298,11 +298,11 @@
 }
 
 .add-to-cart-button:hover {
-    background-color: #2563eb;
+    background-color: #d93c3c;
 }
 
 .add-to-cart-button:disabled {
-    background-color: #9ca3af;
+    background-color: #fca5a5;
     cursor: not-allowed;
 }
 
@@ -324,3 +324,5 @@
 .modal-content::-webkit-scrollbar-thumb:hover {
     background: #a8a8a8;
 }
+
+

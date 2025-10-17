@@ -199,4 +199,17 @@
         width: calc(100vw - 40px);
         right: 20px;
     }
+}.notification-actions {
+    margin-left: auto;
+    background: none;
+    border: none;
+    color: #999;
+    font-size: 0.9rem;
+    cursor: pointer;
+    padding: 0 0.5rem;
+    transition: color 0.2s;
+}
+
+.notification-actions:hover {
+    color: var(--primary-color);
 }

@@ -1,4 +1,4 @@
-export type MainCategory = 'all' | 'cake' | 'drink' | 'food';
+﻿export type MainCategory = 'all' | 'cake' | 'drink' | 'food';
 
 export interface CakeFilters {
     occasion?: string[];   // Dịp sử dụng
@@ -51,23 +51,11 @@ export const CAKE_FILTERS = {
 };
 
 export const FOOD_FILTERS = {
-    type: [
-        'Mì',
-        'Bánh',
-        'Pizza',
-        'Snack',
-        'Đồ chiên'
-    ]
+    type: ['Mì', 'Bánh', 'Pizza', 'Snack', 'Đồ chiên'],
 };
 
 export const DRINK_FILTERS = {
-    type: [
-        'Nước ngọt',
-        'Nước ép trái cây',
-        'Trà sữa',
-        'Cà phê',
-        'Sinh tố'
-    ]
+    type: ['Nước ngọt', 'Nước ép trái cây', 'Trà sữa', 'Cà phê', 'Sinh tố'],
 };
 
 // Types for Product Customization Options
@@ -140,3 +128,4 @@ export const SORT_OPTIONS: SortOption[] = [
     { id: 'name-desc', label: 'Tên Z-A' },
     { id: 'newest', label: 'Mới nhất' }
 ];
+

@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { uiService } from '../../services/uiService';
 import { cartService } from '../../services/cartService';
 import { authService } from '../../services/authService';
 import { User } from '../../types/auth';
+import Logo from './Logo.png';
 import '../../assets/Css/components/header.css';
 import '../../assets/Css/components/auth-header.css';
 import '../../assets/Css/auth.css';
@@ -82,7 +83,7 @@ export const Header = ({ onSearch }: Props) => {
     return (
         <header>
             <div className="logo">
-                <img src="/images/logo.png" alt="Store Logo" />
+                <img src={Logo} alt="Store Logo" />
             </div>
 
             <div className="search-section">

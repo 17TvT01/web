@@ -182,14 +182,21 @@ export const ProductList = ({ category, filters, sortBy, searchQuery }: Props) =
                         </div>
                         <div className="product-info">
                             <h3>{product.name}</h3>
-                            {product.filters && (
+                            {(product.filters || product.aiKeys) && (
                                 <div className="product-tags">
-                                    {Object.entries(product.filters).map(([type, values]) => (
-                                        Array.isArray(values) ? values.map(value => (
-                                            <span key={`${type}-${value}`} className="tag">
-                                                {value}
-                                            </span>
-                                        )) : null
+                                    {Array.from(new Set<string>([
+                                        ...(product.aiKeys ?? []),
+                                        ...Object.values(product.filters ?? {}).flatMap((val) =>
+                                            Array.isArray(val)
+                                                ? val
+                                                : typeof val === 'string' && val.trim()
+                                                    ? [val]
+                                                    : []
+                                        ),
+                                    ])).map(tag => (
+                                        <span key={`${product.id}-${tag}`} className="tag">
+                                            {tag}
+                                        </span>
                                     ))}
                                 </div>
                             )}

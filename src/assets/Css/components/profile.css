@@ -1,4 +1,4 @@
-.profile-container {
+﻿.profile-container {
     max-width: 1200px;
     margin: 0 auto;
     padding: 20px;
@@ -216,4 +216,149 @@
     .profile-avatar {
         margin: 0 auto;
     }
+}.order-history-section {
+    margin-top: 50px;
 }
+
+.order-history-section h3 {
+    font-size: 20px;
+    margin-bottom: 20px;
+    color: #333;
+}
+
+.order-history-empty {
+    padding: 20px;
+    background: #fafafa;
+    border: 1px dashed #ddd;
+    border-radius: 6px;
+    color: #666;
+}
+
+.order-history-empty.error {
+    color: #d32f2f;
+    border-color: #ffcdd2;
+    background: #ffebee;
+}
+
+.order-history-list {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.order-history-card {
+    background: #fff;
+    border: 1px solid #eee;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.order-history-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 15px;
+}
+
+.order-history-id {
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.order-history-date {
+    font-size: 14px;
+    color: #777;
+}
+
+.order-history-status {
+    display: flex;
+    gap: 10px;
+}
+
+.status-pill {
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.status-pill.status-pending {
+    background: #fff8e1;
+    color: #ff9800;
+}
+
+.status-pill.status-processing {
+    background: #e3f2fd;
+    color: #1976d2;
+}
+
+.status-pill.status-delivered {
+    background: #e8f5e9;
+    color: #2e7d32;
+}
+
+.status-pill.status-cancelled {
+    background: #ffebee;
+    color: #c62828;
+}
+
+.status-pill.payment-paid {
+    background: #e8f5e9;
+    color: #2e7d32;
+}
+
+.status-pill.payment-unpaid {
+    background: #ffebee;
+    color: #c62828;
+}
+
+.order-history-meta {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    margin-bottom: 15px;
+    color: #555;
+}
+
+.order-history-meta .label {
+    font-weight: 500;
+    margin-right: 6px;
+}
+
+.order-history-meta .total {
+    font-weight: 600;
+    color: #2e7d32;
+}
+
+.order-history-items {
+    border-top: 1px solid #f0f0f0;
+    padding-top: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.order-history-item {
+    display: flex;
+    justify-content: space-between;
+    font-size: 14px;
+    color: #444;
+}
+
+.order-history-item .item-name {
+    flex: 1;
+}
+
+.order-history-item .item-qty {
+    width: 60px;
+    text-align: right;
+    color: #777;
+}
+
+.order-history-item .item-price {
+    width: 120px;
+    text-align: right;
+    font-weight: 500;
+}
+
