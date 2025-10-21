@@ -35,7 +35,7 @@ class StoreGUI:
         self.table_colors = {
             "empty": "#D1D5DB",
             "paid": "#34D399",
-            "unpaid": "#FDBA74",
+            "unpaid": "#EF4444",
             "cancelled": "#FCA5A5"
         }
         self.table_auto_refresh_ms = 60_000

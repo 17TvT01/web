@@ -546,7 +546,7 @@ class OrderManager:
             self.db.cursor.execute(update_sql, tuple(params))
             self.db.conn.commit()
 
-            if normalized_status in {"cancelled", "served"}:
+            if normalized_status == "cancelled":
                 self._release_table_for_order(order_id)
 
             print(f"Order {order_id} status updated to {normalized_status}")
@@ -613,7 +613,6 @@ class OrderManager:
                 ("served", qr_payload, order_id)
             )
             self.db.conn.commit()
-            self._release_table_for_order(order_id)
             print(f"Order {order_id} marked as served")
             return qr_payload
         except ValueError as e:

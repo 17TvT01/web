@@ -202,8 +202,19 @@ class StaffApp(tk.Tk):
         self.send_kitchen_btn = ttk.Button(action_frame, text="Gui xuong bep", command=self.send_to_kitchen)
         self.send_kitchen_btn.pack(side=tk.LEFT)
 
-        self.mark_served_btn = ttk.Button(action_frame, text="Da phuc vu (QR)", command=self.mark_served)
-        self.mark_served_btn.pack(side=tk.LEFT, padx=5)
+        self.mark_served_pay_now_btn = ttk.Button(
+            action_frame,
+            text="Da phuc vu (Thanh toan ngay)",
+            command=self.mark_served_pay_now
+        )
+        self.mark_served_pay_now_btn.pack(side=tk.LEFT, padx=5)
+
+        self.mark_served_pay_later_btn = ttk.Button(
+            action_frame,
+            text="Da phuc vu (Thanh toan sau)",
+            command=self.mark_served_pay_later
+        )
+        self.mark_served_pay_later_btn.pack(side=tk.LEFT, padx=5)
 
         self.cancel_btn = ttk.Button(action_frame, text="Huy don", command=self.cancel_order)
         self.cancel_btn.pack(side=tk.LEFT)
@@ -567,7 +578,7 @@ class StaffApp(tk.Tk):
     def send_to_kitchen(self):
         self._transition_order("confirmed", "sent_to_kitchen", success_message="Da gui don xuong bep.")
 
-    def mark_served(self):
+    def mark_served_pay_now(self):
         if not self.selected_order_data:
             messagebox.showinfo("Thong bao", "Hay chon mot don hang truoc.")
             return
@@ -576,7 +587,26 @@ class StaffApp(tk.Tk):
         if qr_data is None:
             messagebox.showerror("Loi", "Khong the danh dau don hang da phuc vu.")
             return
+        try:
+            self.order_manager.update_payment_status(order_id, "paid")
+        except Exception:
+            pass
         self.show_qr_popup(order_id, qr_data)
+        self.load_order_details(order_id)
+        self.refresh_orders(keep_selection=order_id)
+
+    def mark_served_pay_later(self):
+        if not self.selected_order_data:
+            messagebox.showinfo("Thong bao", "Hay chon mot don hang truoc.")
+            return
+        order_id = self.selected_order_data["id"]
+        if not self.order_manager.update_order_status(order_id, "served"):
+            messagebox.showerror("Loi", "Khong the danh dau don hang da phuc vu.")
+            return
+        try:
+            self.order_manager.update_payment_status(order_id, "unpaid")
+        except Exception:
+            pass
         self.load_order_details(order_id)
         self.refresh_orders(keep_selection=order_id)
 
@@ -669,7 +699,8 @@ class StaffApp(tk.Tk):
             self.save_details_btn,
             self.confirm_btn,
             self.send_kitchen_btn,
-            self.mark_served_btn,
+            self.mark_served_pay_now_btn,
+            self.mark_served_pay_later_btn,
             self.cancel_btn,
             self.add_item_btn,
             self.remove_item_btn,
@@ -692,7 +723,9 @@ class StaffApp(tk.Tk):
 
         self.confirm_btn["state"] = "normal" if status_code == "pending" else "disabled"
         self.send_kitchen_btn["state"] = "normal" if status_code == "confirmed" else "disabled"
-        self.mark_served_btn["state"] = "normal" if status_code == "completed" else "disabled"
+        ready_for_served = status_code == "completed"
+        self.mark_served_pay_now_btn["state"] = "normal" if ready_for_served else "disabled"
+        self.mark_served_pay_later_btn["state"] = "normal" if ready_for_served else "disabled"
         self.cancel_btn["state"] = "normal" if status_code not in {"cancelled", "served"} else "disabled"
 
 

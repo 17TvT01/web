@@ -40,7 +40,7 @@ class PaymentService {
             note: details.note,
             customer_email: details.customerEmail,
             email_receipt: !!details.emailReceipt,
-            payment_status: 'paid',
+            payment_status: 'unpaid',
         };
 
         const response = await axios.post(`${API_BASE}/orders`, orderData);
