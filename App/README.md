@@ -136,3 +136,33 @@ Attributes:
   Flavor: Chocolate, Vanilla
   Ingredient: Chocolate, Cream
   Size: 6 người, 8 người
+## Ung dung bo sung cho quy trinh moi
+
+### Nhan vien phuc vu (`App/staff_app/app.py`)
+- Man hinh danh sach don hang theo trang thai (`pending`, `confirmed`, `sent_to_kitchen`, `completed`, `served`, `cancelled`).
+- Cho phep xac nhan, chinh sua mon an, gui xuong bep, danh dau da phuc vu va hien QR thanh toan.
+- Cach chay:
+  ```bash
+  cd App
+  python -m staff_app.app
+  ```
+
+### Bep (`App/kitchen_app/app.py`)
+- Hien cac don o cac trang thai cho bep (`sent_to_kitchen`, `processing`, `completed`, `cancelled`).
+- Cap nhat trang thai bang cac nut: "Chua xu ly", "Dang xu ly", "Hoan thanh", "Da huy".
+- Nhan doi vao mon de xem chi tiet tuy chon cua khach hang.
+- Cach chay:
+  ```bash
+  cd App
+  python -m kitchen_app.app
+  ```
+
+- Danh sach ban hien thi trong tab Quan ly don hang duoc dinh nghia trong `App/config/tables.json`. Chinh sua file nay de cap nhat so ban hoac ten ban.
+
+### API bo sung
+- `PUT /orders/<id>/items`: Cap nhat mon an hoac thong tin ban.
+- `POST /orders/<id>/confirm`: Nhan vien xac nhan don.
+- `POST /orders/<id>/send-to-kitchen`: Day don xuong bep.
+- `POST /orders/<id>/status`: Cap nhat cac trang thai (bao gom `served` tao QR thanh toan).
+- `GET /orders/<id>/qr`: Lay du lieu QR thanh toan.
+

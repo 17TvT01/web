@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request
+﻿from flask import Flask, jsonify, request
 from product_manager import ProductManager
 from order_manager import OrderManager
 from flask_cors import CORS
@@ -21,28 +21,28 @@ def register():
     name = data.get('name')
     email = data.get('email')
     password = data.get('password')
-    print(f"Đang xử lý đăng ký cho email: {email}")
+    print(f"Äang xá»­ lÃ½ Ä‘Äƒng kÃ½ cho email: {email}")
     if not name or not email or not password:
-        print("Thiếu thông tin đăng ký")
+        print("Thiáº¿u thÃ´ng tin Ä‘Äƒng kÃ½")
         return jsonify({'error': 'Missing required fields'}), 400
     password_hash = hashlib.sha256(password.encode()).hexdigest()
     try:
-        print("Đang kết nối database...")
+        print("Äang káº¿t ná»‘i database...")
         db = product_manager.db  # Use the same db connection
-        print("Đã kết nối database thành công")
+        print("ÄÃ£ káº¿t ná»‘i database thÃ nh cÃ´ng")
         
         db.cursor.execute('SELECT id FROM users WHERE email=%s', (email,))
         if db.cursor.fetchone():
-            print(f"Email {email} đã tồn tại")
+            print(f"Email {email} Ä‘Ã£ tá»“n táº¡i")
             return jsonify({'error': 'Email already registered'}), 409
             
-        print("Đang thêm người dùng mới...")
+        print("Äang thÃªm ngÆ°á»i dÃ¹ng má»›i...")
         db.cursor.execute('INSERT INTO users (name, email, password_hash) VALUES (%s, %s, %s)', (name, email, password_hash))
         db.conn.commit()
-        print("Đăng ký thành công")
+        print("ÄÄƒng kÃ½ thÃ nh cÃ´ng")
         return jsonify({'message': 'Registration successful'}), 201
     except mysql.connector.Error as e:
-        print(f"Lỗi SQL: {str(e)}")
+        print(f"Lá»—i SQL: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 # --- User Login Endpoint ---
@@ -105,8 +105,14 @@ def get_products():
 
 @app.route('/orders', methods=['GET'])
 def get_orders():
-    status = request.args.get('status')
-    orders = order_manager.get_all_orders(status)
+    status_param = request.args.get('status')
+    status_filter = None
+    if status_param:
+        if ',' in status_param:
+            status_filter = [item.strip() for item in status_param.split(',') if item.strip()]
+        else:
+            status_filter = status_param.strip()
+    orders = order_manager.get_all_orders(status_filter)
     return jsonify(orders)
 
 @app.route('/orders/<int:order_id>', methods=['GET'])
@@ -123,15 +129,24 @@ def create_order():
         data = request.json
         
         if not data:
-            return jsonify({'error': 'Không có dữ liệu được gửi'}), 400
+            return jsonify({'error': 'KhÃ´ng cÃ³ dá»¯ liá»‡u Ä‘Æ°á»£c gá»­i'}), 400
             
         customer_name = data.get('customer_name')
         items = data.get('items')
         total_price = data.get('total_price')
-        status = data.get('status', 'pending')
+        # Force all customer orders to start as pending so staff can confirm before the kitchen sees them
+        if 'status' in data and data.get('status') not in (None, '', 'pending'):
+            print(f"Ignoring client-supplied status '{data.get('status')}' for new order")
+        status = 'pending'
         order_type = data.get('order_type')
         payment_method = data.get('payment_method')
         table_number = data.get('table_number')
+        if isinstance(table_number, str):
+            table_number = table_number.strip()
+            if table_number == "":
+                table_number = None
+        elif table_number is not None:
+            table_number = str(table_number).strip() or None
         needs_assistance = bool(data.get('needs_assistance', False))
         note = data.get('note')
         customer_email = data.get('customer_email')
@@ -140,38 +155,38 @@ def create_order():
 
         # Validate required fields
         if not customer_name or not customer_name.strip():
-            return jsonify({'error': 'Tên khách hàng là bắt buộc'}), 400
+            return jsonify({'error': 'TÃªn khÃ¡ch hÃ ng lÃ  báº¯t buá»™c'}), 400
             
         if not items or not isinstance(items, list) or len(items) == 0:
-            return jsonify({'error': 'Danh sách sản phẩm không được để trống'}), 400
+            return jsonify({'error': 'Danh sÃ¡ch sáº£n pháº©m khÃ´ng Ä‘Æ°á»£c Ä‘á»ƒ trá»‘ng'}), 400
             
         if total_price is None:
-            return jsonify({'error': 'Tổng giá là bắt buộc'}), 400
+            return jsonify({'error': 'Tá»•ng giÃ¡ lÃ  báº¯t buá»™c'}), 400
             
         try:
             total_price = float(total_price)
             if total_price < 0:
-                return jsonify({'error': 'Tổng giá phải lớn hơn 0'}), 400
+                return jsonify({'error': 'Tá»•ng giÃ¡ pháº£i lá»›n hÆ¡n 0'}), 400
         except (ValueError, TypeError):
-            return jsonify({'error': 'Tổng giá phải là số'}), 400
+            return jsonify({'error': 'Tá»•ng giÃ¡ pháº£i lÃ  sá»‘'}), 400
 
         # Validate and sanitize items
         sanitized_items = []
         for idx, item in enumerate(items):
             if not isinstance(item, dict):
-                return jsonify({'error': f'Item thứ {idx+1} phải là object'}), 400
+                return jsonify({'error': f'Item thá»© {idx+1} pháº£i lÃ  object'}), 400
 
             if 'product_id' not in item or 'quantity' not in item:
-                return jsonify({'error': f'Item thứ {idx+1} thiếu product_id hoặc quantity'}), 400
+                return jsonify({'error': f'Item thá»© {idx+1} thiáº¿u product_id hoáº·c quantity'}), 400
 
             try:
                 product_id = int(item['product_id'])
                 quantity = int(item['quantity'])
 
                 if product_id <= 0:
-                    return jsonify({'error': f'Lỗi validation: product_id trong item {idx+1} phải là số nguyên dương'}), 400
+                    return jsonify({'error': f'Lá»—i validation: product_id trong item {idx+1} pháº£i lÃ  sá»‘ nguyÃªn dÆ°Æ¡ng'}), 400
                 if quantity <= 0:
-                    return jsonify({'error': f'Lỗi validation: quantity trong item {idx+1} phải là số nguyên dương'}), 400
+                    return jsonify({'error': f'Lá»—i validation: quantity trong item {idx+1} pháº£i lÃ  sá»‘ nguyÃªn dÆ°Æ¡ng'}), 400
                 sanitized = {'product_id': product_id, 'quantity': quantity}
                 if 'selected_options' in item:
                     try:
@@ -181,7 +196,7 @@ def create_order():
                         pass
                 sanitized_items.append(sanitized)
             except (ValueError, TypeError):
-                return jsonify({'error': f'Lỗi validation: product_id và quantity trong item {idx+1} phải là số nguyên'}), 400
+                return jsonify({'error': f'Lá»—i validation: product_id vÃ  quantity trong item {idx+1} pháº£i lÃ  sá»‘ nguyÃªn'}), 400
 
         order_id = order_manager.add_order(
             customer_name,
@@ -198,14 +213,124 @@ def create_order():
             payment_status
         )
         if order_id:
-            return jsonify({'order_id': order_id}), 201
+            payload = {'order_id': order_id}
+            assigned_table = getattr(order_manager, 'last_assigned_table', None)
+            if assigned_table:
+                payload['table_number'] = assigned_table
+            return jsonify(payload), 201
         else:
-            return jsonify({'error': 'Không thể tạo đơn hàng trong database'}), 500
+            message = order_manager.last_error or 'Không thể tạo đơn hàng trong database'
+            error_code = getattr(order_manager, 'last_error_code', None)
+            status_code = 500
+            if error_code == 'validation':
+                status_code = 400
+            elif error_code == 'conflict':
+                status_code = 409
+            elif error_code == 'not_found':
+                status_code = 404
+            elif error_code == 'database':
+                status_code = 500
+            return jsonify({'error': message}), status_code
+            
             
     except Exception as e:
         print(f"Error in create_order API: {str(e)}")
-        return jsonify({'error': f'Lỗi server: {str(e)}'}), 500
+        return jsonify({'error': f'Lá»—i server: {str(e)}'}), 500
 
+
+@app.route('/orders/<int:order_id>/items', methods=['PUT'])
+def update_order_items(order_id):
+    data = request.json or {}
+    items = data.get('items')
+    if items is None:
+        return jsonify({'error': 'Danh sach mon an bat buoc'}), 400
+
+    update_result = order_manager.update_order_details(
+        order_id,
+        items=items,
+        note=data.get('note'),
+        table_number=data.get('table_number'),
+        customer_name=data.get('customer_name'),
+        needs_assistance=data.get('needs_assistance')
+    )
+
+    if update_result is None:
+        if order_manager.get_order(order_id) is None:
+            return jsonify({'error': 'Order not found'}), 404
+        return jsonify({'error': 'Failed to update order items'}), 400
+
+    refreshed = order_manager.get_order(order_id)
+    return jsonify({'message': 'Order items updated', 'order': refreshed}), 200
+
+
+@app.route('/orders/<int:order_id>/confirm', methods=['POST'])
+def confirm_order(order_id):
+    data = request.json or {}
+    if any(key in data for key in ('items', 'note', 'table_number', 'customer_name', 'needs_assistance')):
+        details = order_manager.update_order_details(
+            order_id,
+            items=data.get('items'),
+            note=data.get('note'),
+            table_number=data.get('table_number'),
+            customer_name=data.get('customer_name'),
+            needs_assistance=data.get('needs_assistance')
+        )
+        if details is None and order_manager.get_order(order_id) is None:
+            return jsonify({'error': 'Order not found'}), 404
+        if details is None:
+            return jsonify({'error': 'Failed to update order before confirmation'}), 400
+
+    if not order_manager.update_order_status(order_id, 'confirmed'):
+        if order_manager.get_order(order_id) is None:
+            return jsonify({'error': 'Order not found'}), 404
+        return jsonify({'error': 'Could not confirm order'}), 400
+
+    refreshed = order_manager.get_order(order_id)
+    return jsonify({'message': 'Order confirmed', 'order': refreshed}), 200
+
+
+@app.route('/orders/<int:order_id>/send-to-kitchen', methods=['POST'])
+def send_order_to_kitchen(order_id):
+    if not order_manager.update_order_status(order_id, 'sent_to_kitchen'):
+        if order_manager.get_order(order_id) is None:
+            return jsonify({'error': 'Order not found'}), 404
+        return jsonify({'error': 'Could not send order to kitchen'}), 400
+    refreshed = order_manager.get_order(order_id)
+    return jsonify({'message': 'Order sent to kitchen', 'order': refreshed}), 200
+
+
+@app.route('/orders/<int:order_id>/status', methods=['POST'])
+def set_order_status(order_id):
+    data = request.json or {}
+    status = data.get('status')
+    if not status:
+        return jsonify({'error': 'Missing status field'}), 400
+
+    normalized = str(status).strip().lower()
+    if normalized in {'served', 'da phuc vu'}:
+        qr_data = order_manager.mark_order_served(order_id)
+        if qr_data is None:
+            if order_manager.get_order(order_id) is None:
+                return jsonify({'error': 'Order not found'}), 404
+            return jsonify({'error': 'Unable to mark order as served'}), 400
+        return jsonify({'message': 'Order marked as served', 'qr_code_data': qr_data}), 200
+
+    if not order_manager.update_order_status(order_id, status):
+        if order_manager.get_order(order_id) is None:
+            return jsonify({'error': 'Order not found'}), 404
+        return jsonify({'error': 'Unable to update order status'}), 400
+    refreshed = order_manager.get_order(order_id)
+    return jsonify({'message': 'Order status updated', 'order': refreshed}), 200
+
+
+@app.route('/orders/<int:order_id>/qr', methods=['GET'])
+def get_order_qr(order_id):
+    qr_data = order_manager.get_qr_code_data(order_id)
+    if not qr_data:
+        if order_manager.get_order(order_id) is None:
+            return jsonify({'error': 'Order not found'}), 404
+        return jsonify({'error': 'QR code not available'}), 404
+    return jsonify({'qr_code_data': qr_data}), 200
 @app.route('/orders/<int:order_id>', methods=['PUT'])
 def update_order(order_id):
     data = request.json
@@ -229,3 +354,4 @@ def delete_order(order_id):
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
+

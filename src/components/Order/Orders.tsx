@@ -72,22 +72,35 @@ export const Orders: React.FC = () => {
 
     const getStatusLabel = (status: string) => {
         switch (status) {
+            case 'pending':
+                return 'Chờ xác nhận';
+            case 'confirmed':
+                return 'Đã xác nhận';
+            case 'sent_to_kitchen':
+                return 'Đã gửi bếp (chưa thanh toán)';
             case 'processing':
-                return 'Đang chế biến';
+                return 'Bếp đang làm';
             case 'completed':
-                return 'Đã hoàn thành';
+                return 'Hoàn thành';
+            case 'served':
+                return 'Đã phục vụ';
             case 'cancelled':
                 return 'Đã hủy';
             default:
-                return 'Chờ xử lý';
+                return 'Đang xử lý';
         }
     };
 
     const getStatusClass = (status: string) => {
         switch (status) {
+            case 'pending':
+            case 'confirmed':
+            case 'sent_to_kitchen':
+                return 'status-pending';
             case 'processing':
                 return 'status-processing';
             case 'completed':
+            case 'served':
                 return 'status-delivered';
             case 'cancelled':
                 return 'status-cancelled';

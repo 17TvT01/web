@@ -1,0 +1,16 @@
+﻿{
+  "tables": [
+    { "number": "1", "name": "Ban 1" },
+    { "number": "2", "name": "Ban 2" },
+    { "number": "3", "name": "Ban 3" },
+    { "number": "4", "name": "Ban 4" },
+    { "number": "5", "name": "Ban 5" },
+    { "number": "6", "name": "Ban 6" },
+    { "number": "7", "name": "Ban 7" },
+    { "number": "8", "name": "Ban 8" },
+    { "number": "9", "name": "Ban 9" },
+    { "number": "10", "name": "Ban 10" },
+    { "number": "11", "name": "Ban 11" },
+    { "number": "12", "name": "Ban 12" }
+  ]
+}

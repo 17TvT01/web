@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import axios from 'axios';
 import { QRCodeSVG } from 'qrcode.react';
 import { paymentService } from '../../services/paymentService';
 import { cartService } from '../../services/cartService';
@@ -46,6 +47,7 @@ export const PaymentModal = () => {
     const [sendInvoice, setSendInvoice] = useState(false);
     const [email, setEmail] = useState('');
     const [orderNote, setOrderNote] = useState('');
+    const [submitError, setSubmitError] = useState<string | null>(null);
 
     useEffect(() => {
         const handleCartUpdate = (e: CustomEvent) => {
@@ -102,10 +104,31 @@ export const PaymentModal = () => {
         return '';
     };
 
+    const normalizeTableNumberInput = (input: string): string | undefined => {
+        if (!input) {
+            return undefined;
+        }
+        const trimmed = input.trim();
+        if (!trimmed) {
+            return undefined;
+        }
+        const digitsOnly = trimmed.replace(/[^\d]/g, '');
+        if (digitsOnly) {
+            return digitsOnly.replace(/^0+/, '') || '0';
+        }
+        const normalized = trimmed
+            .toLowerCase()
+            .replace(/bàn|ban|table|tbl/gi, '')
+            .replace(/[#]/g, '')
+            .trim();
+        return normalized || trimmed;
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
         try {
+            setSubmitError(null);
             const paymentDetails = {
                 orderType,
                 paymentMethod,
@@ -118,7 +141,7 @@ export const PaymentModal = () => {
                     }
                 } : {}),
                 ...(orderType === 'dine-in' ? {
-                    tableNumber: tableNumber.trim() || undefined,
+                    tableNumber: normalizeTableNumberInput(tableNumber),
                     needsAssistance
                 } : {}),
                 note: orderNote.trim() || undefined,
@@ -130,6 +153,22 @@ export const PaymentModal = () => {
 
         } catch (error) {
             console.error('Submit payment error:', error);
+            if (axios.isAxiosError(error)) {
+                const backendMessage =
+                    typeof error.response?.data === 'string'
+                        ? error.response?.data
+                        : error.response?.data?.error;
+                const message =
+                    backendMessage ||
+                    (error.response?.status === 409
+                        ? 'Bàn bạn chọn đang bận, vui lòng chọn bàn khác hoặc chờ bàn trống.'
+                        : 'Không thể đặt món, vui lòng thử lại.');
+                setSubmitError(message);
+            } else if (error instanceof Error) {
+                setSubmitError(error.message);
+            } else {
+                setSubmitError('Không thể đặt món, vui lòng thử lại.');
+            }
         }
     };
 
@@ -315,6 +354,12 @@ export const PaymentModal = () => {
                                 </div>
                             )}
                         </div>
+
+                        {submitError && (
+                            <div className="form-error" role="alert">
+                                {submitError}
+                            </div>
+                        )}
 
                     </div>
 

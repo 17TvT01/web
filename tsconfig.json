@@ -14,6 +14,10 @@
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "react-jsx",
+    "baseUrl": ".",
+    "paths": {
+      "@shared/*": ["shared/*"]
+    },
 
     /* Linting */
     "strict": true,
@@ -21,6 +25,6 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src"],
+  "include": ["src", "shared"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

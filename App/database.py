@@ -1,5 +1,6 @@
 import mysql.connector
 import json
+from pathlib import Path
 from mysql.connector import Error
 
 class Database:
@@ -18,7 +19,8 @@ class Database:
                         host='localhost',
                         user='root',
                         password=pwd,
-                        charset='utf8mb4'
+                        charset='utf8mb4',
+                        autocommit=True
                     )
                     break
                 except Error as e:
@@ -30,6 +32,10 @@ class Database:
             
             # Create cursor
             self.cursor = self.conn.cursor()
+            try:
+                self.conn.autocommit = True
+            except AttributeError:
+                pass
             
             # Drop and recreate database
             # self.cursor.execute("DROP DATABASE IF EXISTS web_store")
@@ -134,7 +140,7 @@ class Database:
                     id INT PRIMARY KEY,
                     customer_name VARCHAR(255) NOT NULL,
                     total_price DECIMAL(10, 2) NOT NULL,
-                    status ENUM('pending', 'completed', 'cancelled') DEFAULT 'pending',
+                    status ENUM('pending', 'confirmed', 'sent_to_kitchen', 'processing', 'completed', 'cancelled', 'served') DEFAULT 'pending',
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             ''')
@@ -144,6 +150,25 @@ class Database:
                 self.cursor.execute("DESCRIBE orders")
                 order_columns = {row[0] for row in self.cursor.fetchall()}
                 alter_stmts = []
+                desired_statuses = (
+                    "pending",
+                    "confirmed",
+                    "sent_to_kitchen",
+                    "processing",
+                    "completed",
+                    "cancelled",
+                    "served"
+                )
+                self.cursor.execute("SHOW COLUMNS FROM orders LIKE 'status'")
+                status_column = self.cursor.fetchone()
+                if status_column:
+                    column_type = status_column[1].lower()
+                    if not all(status in column_type for status in desired_statuses):
+                        enum_values = ", ".join(f"'{status}'" for status in desired_statuses)
+                        self.cursor.execute(
+                            f"ALTER TABLE orders MODIFY status ENUM({enum_values}) DEFAULT 'pending'"
+                        )
+                        self.conn.commit()
                 if 'order_type' not in order_columns:
                     alter_stmts.append("ADD COLUMN order_type VARCHAR(20) NULL")
                 if 'payment_method' not in order_columns:
@@ -160,12 +185,30 @@ class Database:
                     alter_stmts.append("ADD COLUMN email_receipt BOOLEAN DEFAULT FALSE")
                 if 'payment_status' not in order_columns:
                     alter_stmts.append("ADD COLUMN payment_status ENUM('unpaid','paid') DEFAULT 'unpaid'")
+                if 'qr_code_data' not in order_columns:
+                    alter_stmts.append("ADD COLUMN qr_code_data TEXT NULL")
                 if alter_stmts:
                     stmt = "ALTER TABLE orders " + ", ".join(alter_stmts)
                     self.cursor.execute(stmt)
                     self.conn.commit()
             except Error as e:
                 print(f"Warning: Could not alter orders table: {e}")
+
+            # Create dining tables table and seed data if needed
+            self.cursor.execute('''
+                CREATE TABLE IF NOT EXISTS dining_tables (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    table_number VARCHAR(50) NOT NULL UNIQUE,
+                    display_name VARCHAR(100) NOT NULL,
+                    is_occupied BOOLEAN NOT NULL DEFAULT FALSE,
+                    current_order_id INT NULL,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    CONSTRAINT fk_dining_tables_order
+                        FOREIGN KEY (current_order_id) REFERENCES orders(id)
+                        ON DELETE SET NULL
+                )
+            ''')
+            self._seed_tables_if_needed()
             
             # Create order_items table
             self.cursor.execute('''
@@ -221,6 +264,49 @@ class Database:
         except Error as e:
             print(f"Error creating tables: {e}")
             raise
+
+    def _load_table_seed_entries(self):
+        config_path = Path(__file__).resolve().parent / "config" / "tables.json"
+        try:
+            with open(config_path, "r", encoding="utf-8") as handle:
+                data = json.load(handle)
+            tables = data.get("tables", [])
+            result = []
+            for entry in tables:
+                number = entry.get("number") or entry.get("id")
+                name = entry.get("name")
+                if number is None:
+                    continue
+                number_text = str(number).strip()
+                if not number_text:
+                    continue
+                if not name:
+                    name = f"Ban {number_text}"
+                result.append({"number": number_text, "name": name})
+            return result
+        except FileNotFoundError:
+            return []
+        except Exception as exc:
+            print(f"Warning: Could not load table configuration: {exc}")
+            return []
+
+    def _seed_tables_if_needed(self):
+        try:
+            self.cursor.execute("SELECT COUNT(*) FROM dining_tables")
+            current = self.cursor.fetchone()
+            current_count = current[0] if current else 0
+            if current_count and current_count > 0:
+                return
+            seed_entries = self._load_table_seed_entries()
+            if not seed_entries:
+                seed_entries = [{"number": str(i), "name": f"Ban {i}"} for i in range(1, 13)]
+            insert_sql = "INSERT INTO dining_tables (table_number, display_name) VALUES (%s, %s)"
+            values = [(entry["number"], entry["name"]) for entry in seed_entries]
+            self.cursor.executemany(insert_sql, values)
+            self.conn.commit()
+            print(f"Seeded {len(values)} dining tables from configuration")
+        except Error as exc:
+            print(f"Warning: Could not seed dining tables: {exc}")
 
     def get_next_id(self, table='products'):
         try:

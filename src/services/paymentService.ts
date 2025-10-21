@@ -22,7 +22,7 @@ interface PaymentDetails {
 }
 
 class PaymentService {
-    private async createOrderInDatabase(details: PaymentDetails) {
+    private async createOrderInDatabase(details: PaymentDetails): Promise<{ orderId: number; tableNumber?: string }> {
         // Prepare order payload for backend
         const orderData = {
             customer_name: details.address?.fullName || 'Customer',
@@ -44,16 +44,22 @@ class PaymentService {
         };
 
         const response = await axios.post(`${API_BASE}/orders`, orderData);
-        if (response.data.order_id) return response.data.order_id as number;
+        if (response.data.order_id) {
+            return {
+                orderId: response.data.order_id as number,
+                tableNumber: response.data.table_number as string | undefined,
+            };
+        }
         throw new Error('Failed to create order');
     }
 
     async submitOrder(details: PaymentDetails) {
-        const orderId = await this.createOrderInDatabase(details);
+        const { orderId, tableNumber } = await this.createOrderInDatabase(details);
 
         // Clear cart and close overlays
         cartService.clearCart();
-        const tableInfo = details.orderType === 'dine-in' && details.tableNumber ? ` - Bàn: ${details.tableNumber}` : '';
+        const resolvedTable = tableNumber || details.tableNumber;
+        const tableInfo = details.orderType === 'dine-in' && resolvedTable ? ` - Bàn: ${resolvedTable}` : '';
         notificationService.show(`Đặt hàng thành công! Mã đơn hàng: #${orderId}${tableInfo}`, {
             type: 'success',
             duration: 5000,
@@ -61,7 +67,8 @@ class PaymentService {
         uiService.hideAllOverlays();
 
         // Event for any listeners
-        window.dispatchEvent(new CustomEvent('order:created', { detail: { orderId, details } }));
+        const enrichedDetails = { ...details, tableNumber: resolvedTable ?? details.tableNumber };
+        window.dispatchEvent(new CustomEvent('order:created', { detail: { orderId, details: enrichedDetails } }));
         return orderId;
     }
 
