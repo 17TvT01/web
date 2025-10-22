@@ -1,4 +1,5 @@
-﻿from flask import Flask, jsonify, request
+# -*- coding: utf-8 -*-
+from flask import Flask, jsonify, request
 from product_manager import ProductManager
 from order_manager import OrderManager
 from flask_cors import CORS
@@ -21,28 +22,28 @@ def register():
     name = data.get('name')
     email = data.get('email')
     password = data.get('password')
-    print(f"Äang xá»­ lÃ½ Ä‘Äƒng kÃ½ cho email: {email}")
+    print(f"Đang xử lý đăng ký cho email: {email}")
     if not name or not email or not password:
-        print("Thiáº¿u thÃ´ng tin Ä‘Äƒng kÃ½")
+        print("Thiếu thông tin đăng ký")
         return jsonify({'error': 'Missing required fields'}), 400
     password_hash = hashlib.sha256(password.encode()).hexdigest()
     try:
-        print("Äang káº¿t ná»‘i database...")
+        print("Đang kết nối database...")
         db = product_manager.db  # Use the same db connection
-        print("ÄÃ£ káº¿t ná»‘i database thÃ nh cÃ´ng")
+        print("Đã kết nối database thành công")
         
         db.cursor.execute('SELECT id FROM users WHERE email=%s', (email,))
         if db.cursor.fetchone():
-            print(f"Email {email} Ä‘Ã£ tá»“n táº¡i")
+            print(f"Email {email} đã tồn tại")
             return jsonify({'error': 'Email already registered'}), 409
             
-        print("Äang thÃªm ngÆ°á»i dÃ¹ng má»›i...")
+        print("Đang thêm người dùng mới...")
         db.cursor.execute('INSERT INTO users (name, email, password_hash) VALUES (%s, %s, %s)', (name, email, password_hash))
         db.conn.commit()
-        print("ÄÄƒng kÃ½ thÃ nh cÃ´ng")
+        print("Đăng ký thành công")
         return jsonify({'message': 'Registration successful'}), 201
     except mysql.connector.Error as e:
-        print(f"Lá»—i SQL: {str(e)}")
+        print(f"Lỗi SQL: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 # --- User Login Endpoint ---
@@ -129,7 +130,7 @@ def create_order():
         data = request.json
         
         if not data:
-            return jsonify({'error': 'KhÃ´ng cÃ³ dá»¯ liá»‡u Ä‘Æ°á»£c gá»­i'}), 400
+            return jsonify({'error': 'Không có dữ liệu được gửi'}), 400
             
         customer_name = data.get('customer_name')
         items = data.get('items')
@@ -155,38 +156,38 @@ def create_order():
 
         # Validate required fields
         if not customer_name or not customer_name.strip():
-            return jsonify({'error': 'TÃªn khÃ¡ch hÃ ng lÃ  báº¯t buá»™c'}), 400
+            return jsonify({'error': 'Tên khách hàng là bắt buộc'}), 400
             
         if not items or not isinstance(items, list) or len(items) == 0:
-            return jsonify({'error': 'Danh sÃ¡ch sáº£n pháº©m khÃ´ng Ä‘Æ°á»£c Ä‘á»ƒ trá»‘ng'}), 400
+            return jsonify({'error': 'Danh sách sản phẩm không được để trống'}), 400
             
         if total_price is None:
-            return jsonify({'error': 'Tá»•ng giÃ¡ lÃ  báº¯t buá»™c'}), 400
+            return jsonify({'error': 'Tổng giá là bắt buộc'}), 400
             
         try:
             total_price = float(total_price)
             if total_price < 0:
-                return jsonify({'error': 'Tá»•ng giÃ¡ pháº£i lá»›n hÆ¡n 0'}), 400
+                return jsonify({'error': 'Tổng giá phải lớn hơn 0'}), 400
         except (ValueError, TypeError):
-            return jsonify({'error': 'Tá»•ng giÃ¡ pháº£i lÃ  sá»‘'}), 400
+            return jsonify({'error': 'Tổng giá phải là số'}), 400
 
         # Validate and sanitize items
         sanitized_items = []
         for idx, item in enumerate(items):
             if not isinstance(item, dict):
-                return jsonify({'error': f'Item thá»© {idx+1} pháº£i lÃ  object'}), 400
+                return jsonify({'error': f'Item thứ {idx+1} phải là object'}), 400
 
             if 'product_id' not in item or 'quantity' not in item:
-                return jsonify({'error': f'Item thá»© {idx+1} thiáº¿u product_id hoáº·c quantity'}), 400
+                return jsonify({'error': f'Item thứ {idx+1} thiếu product_id hoặc quantity'}), 400
 
             try:
                 product_id = int(item['product_id'])
                 quantity = int(item['quantity'])
 
                 if product_id <= 0:
-                    return jsonify({'error': f'Lá»—i validation: product_id trong item {idx+1} pháº£i lÃ  sá»‘ nguyÃªn dÆ°Æ¡ng'}), 400
+                    return jsonify({'error': f'Lỗi validation: product_id trong item {idx+1} phải là số nguyên dương'}), 400
                 if quantity <= 0:
-                    return jsonify({'error': f'Lá»—i validation: quantity trong item {idx+1} pháº£i lÃ  sá»‘ nguyÃªn dÆ°Æ¡ng'}), 400
+                    return jsonify({'error': f'Lỗi validation: quantity trong item {idx+1} phải là số nguyên dương'}), 400
                 sanitized = {'product_id': product_id, 'quantity': quantity}
                 if 'selected_options' in item:
                     try:
@@ -196,7 +197,7 @@ def create_order():
                         pass
                 sanitized_items.append(sanitized)
             except (ValueError, TypeError):
-                return jsonify({'error': f'Lá»—i validation: product_id vÃ  quantity trong item {idx+1} pháº£i lÃ  sá»‘ nguyÃªn'}), 400
+                return jsonify({'error': f'Lỗi validation: product_id và quantity trong item {idx+1} phải là số nguyên'}), 400
 
         order_id = order_manager.add_order(
             customer_name,
@@ -235,7 +236,7 @@ def create_order():
             
     except Exception as e:
         print(f"Error in create_order API: {str(e)}")
-        return jsonify({'error': f'Lá»—i server: {str(e)}'}), 500
+        return jsonify({'error': f'Lỗi server: {str(e)}'}), 500
 
 
 @app.route('/orders/<int:order_id>/items', methods=['PUT'])
@@ -243,7 +244,7 @@ def update_order_items(order_id):
     data = request.json or {}
     items = data.get('items')
     if items is None:
-        return jsonify({'error': 'Danh sach mon an bat buoc'}), 400
+        return jsonify({'error': 'Danh sách món ăn bắt buộc'}), 400
 
     update_result = order_manager.update_order_details(
         order_id,
@@ -307,7 +308,7 @@ def set_order_status(order_id):
         return jsonify({'error': 'Missing status field'}), 400
 
     normalized = str(status).strip().lower()
-    if normalized in {'served', 'da phuc vu'}:
+    if normalized in {'served', 'đã phục vụ'}:
         qr_data = order_manager.mark_order_served(order_id)
         if qr_data is None:
             if order_manager.get_order(order_id) is None:
@@ -354,4 +355,3 @@ def delete_order(order_id):
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
-
