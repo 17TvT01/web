@@ -1,6 +1,7 @@
 import { FormEvent } from 'react';
 import { uiService } from './uiService';
 import { notificationService } from './notificationService';
+import { API_BASE_URL } from '../config/env';
 
 interface User {
     id: string;
@@ -37,7 +38,7 @@ class AuthService {
         }
 
         try {
-            const response = await fetch('http://localhost:5000/login', {
+            const response = await fetch(`${API_BASE_URL}/login`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email, password })
@@ -84,7 +85,7 @@ class AuthService {
             return;
         }
         try {
-            const response = await fetch('http://localhost:5000/register', {
+            const response = await fetch(`${API_BASE_URL}/register`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ name, email, password })

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 from flask import Flask, jsonify, request
 from product_manager import ProductManager
 from order_manager import OrderManager
@@ -10,12 +9,11 @@ from decimal import Decimal
 from datetime import datetime
 
 app = Flask(__name__)
-CORS(app)  # Enable CORS for frontend requests
+CORS(app)
 
 product_manager = ProductManager()
 order_manager = OrderManager()
 
-# --- User Registration Endpoint ---
 @app.route('/register', methods=['POST'])
 def register():
     data = request.json
@@ -29,7 +27,7 @@ def register():
     password_hash = hashlib.sha256(password.encode()).hexdigest()
     try:
         print("Đang kết nối database...")
-        db = product_manager.db  # Use the same db connection
+        db = product_manager.db
         print("Đã kết nối database thành công")
         
         db.cursor.execute('SELECT id FROM users WHERE email=%s', (email,))

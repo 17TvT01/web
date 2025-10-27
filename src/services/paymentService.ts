@@ -2,8 +2,7 @@ import axios from 'axios';
 import { notificationService } from './notificationService';
 import { uiService } from './uiService';
 import { cartService } from './cartService';
-
-const API_BASE = (import.meta as any).env.VITE_API_BASE_URL || 'http://localhost:5000';
+import { API_BASE_URL } from '../config/env';
 
 interface PaymentDetails {
     orderType: 'dine-in' | 'takeaway';
@@ -43,7 +42,7 @@ class PaymentService {
             payment_status: 'unpaid',
         };
 
-        const response = await axios.post(`${API_BASE}/orders`, orderData);
+        const response = await axios.post(`${API_BASE_URL}/orders`, orderData);
         if (response.data.order_id) {
             return {
                 orderId: response.data.order_id as number,

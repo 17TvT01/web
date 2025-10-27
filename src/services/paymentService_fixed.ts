@@ -3,8 +3,7 @@ import { notificationService } from './notificationService';
 import { uiService } from './uiService';
 import { cartService } from './cartService';
 import { orderService } from './orderService';
-
-const API_BASE = (import.meta as any).env.VITE_API_BASE_URL || 'http://localhost:5000';
+import { API_BASE_URL } from '../config/env';
 
 interface PaymentDetails {
     orderType: 'dine-in' | 'takeaway';
@@ -50,7 +49,7 @@ class PaymentService {
             console.log('Creating order with data:', orderData);
 
             // Call backend API to create order
-            const response = await axios.post(`${API_BASE}/orders`, orderData, {
+            const response = await axios.post(`${API_BASE_URL}/orders`, orderData, {
                 headers: {
                     'Content-Type': 'application/json'
                 }

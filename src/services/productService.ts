@@ -1,4 +1,5 @@
 import { Product, Filter, SearchResult, CAKE_FILTERS, FOOD_FILTERS, DRINK_FILTERS, ProductFilterMap, MainCategory } from '../types';
+import { API_BASE_URL } from '../config/env';
 
 class ProductService {
     private products: Product[] = [];
@@ -14,7 +15,7 @@ class ProductService {
 
     async loadProducts(): Promise<void> {
         try {
-            const response = await fetch('http://localhost:5000/products');
+            const response = await fetch(`${API_BASE_URL}/products`);
             if (!response.ok) {
                 throw new Error('Failed to fetch products from backend');
             }
