@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, send_from_directory
 from product_manager import ProductManager
 from order_manager import OrderManager
 from flask_cors import CORS
@@ -7,12 +7,25 @@ import hashlib
 import json
 from decimal import Decimal
 from datetime import datetime
+import os
+from werkzeug.exceptions import NotFound
 
 app = Flask(__name__)
 CORS(app)
 
 product_manager = ProductManager()
 order_manager = OrderManager()
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+IMAGES_DIR = os.path.abspath(os.path.join(BASE_DIR, '..', 'images'))
+
+
+@app.route('/images/<path:filename>')
+def serve_image(filename):
+    sanitized = filename.replace('\\', '/')
+    try:
+        return send_from_directory(IMAGES_DIR, sanitized)
+    except NotFound:
+        return jsonify({'error': 'Image not found'}), 404
 
 @app.route('/register', methods=['POST'])
 def register():
