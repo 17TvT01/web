@@ -13,7 +13,7 @@ type BottomNavItem = {
 const NAV_ITEMS: BottomNavItem[] = [
   { to: '/', icon: '🏠', label: 'Trang chủ' },
   { to: '/cart', icon: '🛒', label: 'Giỏ hàng' },
-  { to: '/orders', icon: '📦', label: 'Đơn hàng', requiresAuth: true },
+  { to: '/orders', icon: '📦', label: 'Đơn hàng' },
   { to: '/profile', icon: '👤', label: 'Tài khoản', requiresAuth: true }
 ];
 
@@ -24,7 +24,7 @@ const BottomNav = () => {
   const handleClick = (event: MouseEvent<HTMLAnchorElement>, item: BottomNavItem) => {
     if (item.requiresAuth && !user) {
       event.preventDefault();
-      navigate('/login');
+      navigate('/login', { state: { from: item.to } });
     }
   };
 

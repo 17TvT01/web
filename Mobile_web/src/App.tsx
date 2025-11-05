@@ -40,14 +40,7 @@ const AppLayout = () => {
           <Route path="/" element={<HomeScreen />} />
           <Route path="/product/:productId" element={<ProductDetailScreen />} />
           <Route path="/cart" element={<CartScreen />} />
-          <Route
-            path="/orders"
-            element={
-              <RequireAuth>
-                <OrdersScreen />
-              </RequireAuth>
-            }
-          />
+          <Route path="/orders" element={<OrdersScreen />} />
           <Route
             path="/profile"
             element={

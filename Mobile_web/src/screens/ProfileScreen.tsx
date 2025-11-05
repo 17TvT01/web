@@ -20,7 +20,7 @@ const ProfileScreen = () => {
     <section className="page-section" style={{ gap: 18 }}>
       <header>
         <h1 className="screen-heading">Tài khoản của bạn</h1>
-        <p className="muted-text">Quản lý thông tin và đơn hàng tại SweetHome.</p>
+        <p className="muted-text">Quản lý thông tin và đơn hàng Của bạn.</p>
       </header>
 
       <div

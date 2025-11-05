@@ -5,7 +5,8 @@ import {
   useMemo,
   useState
 } from 'react';
-import type { Product, SelectedOption } from '@shared/types';
+import type { Product, ProductOption, SelectedOption } from '@shared/types';
+import defaultOptionsByCategory from '@shared/config/defaultProductOptions';
 
 export interface CartItem extends Product {
   uniqueId: string;
@@ -64,6 +65,40 @@ const getProductUnitPrice = (product: Product) => {
   return product.price;
 };
 
+const buildOptionLookup = (product: Product): Record<string, ProductOption> => {
+  const map: Record<string, ProductOption> = {};
+  const defaults = defaultOptionsByCategory[product.category] ?? [];
+  const custom = Array.isArray(product.options) ? product.options : [];
+  [...defaults, ...custom].forEach(option => {
+    map[option.name] = option;
+  });
+  return map;
+};
+
+const calculateOptionExtra = (product: Product, selectedOptions?: SelectedOption[]): number => {
+  if (!selectedOptions || !selectedOptions.length) {
+    return 0;
+  }
+  const optionMap = buildOptionLookup(product);
+  return selectedOptions.reduce((acc, selected) => {
+    const option = optionMap[selected.name];
+    if (!option) {
+      return acc;
+    }
+    const matched = option.items.find(item =>
+      typeof item === 'string' ? item === selected.value : item.name === selected.value
+    );
+    if (!matched || typeof matched === 'string') {
+      return acc;
+    }
+    const price = typeof matched.price === 'number' ? matched.price : 0;
+    if (price <= 0) {
+      return acc;
+    }
+    return acc + price;
+  }, 0);
+};
+
 export const CartProvider: React.FC<React.PropsWithChildren> = ({ children }) => {
   const [items, setItems] = useState<CartItem[]>(() => loadInitialItems());
 
@@ -72,7 +107,11 @@ export const CartProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
     if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
       return;
     }
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(nextItems));
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(nextItems));
+    } catch {
+      // ignore write errors
+    }
   }, []);
 
   const addItem = useCallback<CartContextValue['addItem']>(
@@ -82,9 +121,7 @@ export const CartProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
 
       if (existing) {
         const nextItems = items.map(item =>
-          item.uniqueId === uniqueId
-            ? { ...item, quantity: item.quantity + quantity }
-            : item
+          item.uniqueId === uniqueId ? { ...item, quantity: item.quantity + quantity } : item
         );
         persist(nextItems);
         return;
@@ -109,9 +146,7 @@ export const CartProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
         persist(filtered);
         return;
       }
-      const nextItems = items.map(item =>
-        item.uniqueId === uniqueId ? { ...item, quantity } : item
-      );
+      const nextItems = items.map(item => (item.uniqueId === uniqueId ? { ...item, quantity } : item));
       persist(nextItems);
     },
     [items, persist]
@@ -132,8 +167,10 @@ export const CartProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
   const totals = useMemo(() => {
     const totalItems = items.reduce((acc, item) => acc + item.quantity, 0);
     const totalPrice = items.reduce((acc, item) => {
-      const unitPrice = getProductUnitPrice(item);
-      return acc + unitPrice * item.quantity;
+      const base = getProductUnitPrice(item);
+      const extra = calculateOptionExtra(item, item.selectedOptions);
+      const unitTotal = base + extra;
+      return acc + unitTotal * item.quantity;
     }, 0);
     return { totalItems, totalPrice };
   }, [items]);

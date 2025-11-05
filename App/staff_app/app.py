@@ -16,24 +16,24 @@ if str(BASE_DIR) not in sys.path:
 from order_manager import OrderManager
 
 STATUS_DISPLAY = {
-    "pending": "Cho xac nhan",
-    "confirmed": "Da xac nhan",
-    "sent_to_kitchen": "Cho bep",
-    "processing": "Bep dang lam",
-    "completed": "Hoan thanh",
-    "served": "Da phuc vu",
-    "cancelled": "Da huy"
+    "pending": "Chờ xác nhận",
+    "confirmed": "Đã xác nhận",
+    "sent_to_kitchen": "Chờ bếp",
+    "processing": "Bếp đang làm",
+    "completed": "Hoàn thành",
+    "served": "Đã phục vụ",
+    "cancelled": "Đã hủy"
 }
 
 FILTER_OPTIONS = [
-    ("Tat ca", "all"),
-    ("Cho xac nhan", "pending"),
-    ("Da xac nhan", "confirmed"),
-    ("Cho bep", "sent_to_kitchen"),
-    ("Bep dang lam", "processing"),
-    ("Hoan thanh", "completed"),
-    ("Da phuc vu", "served"),
-    ("Da huy", "cancelled")
+    ("Tất cả", "all"),
+    ("Chờ xác nhận", "pending"),
+    ("Đã xác nhận", "confirmed"),
+    ("Chờ bếp", "sent_to_kitchen"),
+    ("Bếp đang làm", "processing"),
+    ("Hoàn thành", "completed"),
+    ("Đã phục vụ", "served"),
+    ("Đã hủy", "cancelled")
 ]
 
 FILTER_LABEL_TO_VALUE = {label: value for label, value in FILTER_OPTIONS}
@@ -49,8 +49,8 @@ def as_float(value):
 class StaffApp(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("Quan ly don hang - Nhan vien phuc vu")
-        self.geometry("1100x650")
+        self.title("Quản lý đơn hàng - Nhân viên phục vụ")
+        self.geometry("1400x700")
 
         self.order_manager = OrderManager()
         self.orders_data = {}
@@ -73,7 +73,7 @@ class StaffApp(tk.Tk):
         self._status_snapshot = {}
         self._refresh_in_progress = False
         self._pending_refresh = False
-        self.last_refresh_var = tk.StringVar(value="Chua cap nhat")
+        self.last_refresh_var = tk.StringVar(value="Chưa cập nhật")
 
         self._build_layout()
         self.refresh_orders()
@@ -89,7 +89,7 @@ class StaffApp(tk.Tk):
         filter_frame = ttk.Frame(left_frame)
         filter_frame.pack(fill=tk.X, pady=(0, 10))
 
-        ttk.Label(filter_frame, text="Loc trang thai:").pack(side=tk.LEFT)
+        ttk.Label(filter_frame, text="Lọc trạng thái:").pack(side=tk.LEFT)
         filter_box = ttk.Combobox(
             filter_frame,
             textvariable=self.status_filter_var,
@@ -97,11 +97,11 @@ class StaffApp(tk.Tk):
             state="readonly",
             width=18
         )
-        filter_box.current(1)  # default to "Cho xac nhan"
+        filter_box.current(1)  # default to "Chờ xác nhận"
         filter_box.pack(side=tk.LEFT, padx=5)
         filter_box.bind("<<ComboboxSelected>>", lambda _: self.refresh_orders())
 
-        self.refresh_button = ttk.Button(filter_frame, text="Lam moi", command=self.refresh_orders)
+        self.refresh_button = ttk.Button(filter_frame, text="Làm mới", command=self.refresh_orders)
         self.refresh_button.pack(side=tk.RIGHT)
 
         ttk.Label(left_frame, textvariable=self.last_refresh_var, anchor=tk.W, font=("TkDefaultFont", 9)).pack(fill=tk.X, pady=(4, 6))
@@ -113,11 +113,11 @@ class StaffApp(tk.Tk):
             height=25,
             selectmode="browse"
         )
-        self.orders_tree.heading("id", text="Ma don")
-        self.orders_tree.heading("customer", text="Khach hang")
-        self.orders_tree.heading("status", text="Trang thai")
-        self.orders_tree.heading("total", text="Tong tien")
-        self.orders_tree.heading("table", text="Ban")
+        self.orders_tree.heading("id", text="Mã đơn")
+        self.orders_tree.heading("customer", text="Khách hàng")
+        self.orders_tree.heading("status", text="Trạng thái")
+        self.orders_tree.heading("total", text="Tổng tiền")
+        self.orders_tree.heading("table", text="Bàn")
         self.orders_tree.column("id", width=70, anchor=tk.CENTER)
         self.orders_tree.column("customer", width=140)
         self.orders_tree.column("status", width=120, anchor=tk.CENTER)
@@ -130,34 +130,34 @@ class StaffApp(tk.Tk):
         right_frame = ttk.Frame(main_frame)
         right_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(15, 0))
 
-        info_frame = ttk.LabelFrame(right_frame, text="Thong tin don hang", padding=10)
+        info_frame = ttk.LabelFrame(right_frame, text="Thông tin đơn hàng", padding=10)
         info_frame.pack(fill=tk.X)
 
-        ttk.Label(info_frame, text="Khach hang:").grid(row=0, column=0, sticky=tk.W)
+        ttk.Label(info_frame, text="Khách hàng:").grid(row=0, column=0, sticky=tk.W)
         ttk.Entry(info_frame, textvariable=self.customer_name_var, width=30).grid(row=0, column=1, sticky=tk.W)
 
-        ttk.Label(info_frame, text="Ban so:").grid(row=0, column=2, sticky=tk.W, padx=(15, 0))
+        ttk.Label(info_frame, text="Bàn số:").grid(row=0, column=2, sticky=tk.W, padx=(15, 0))
         ttk.Entry(info_frame, textvariable=self.table_number_var, width=10).grid(row=0, column=3, sticky=tk.W)
 
-        ttk.Label(info_frame, text="Trang thai:").grid(row=1, column=0, sticky=tk.W, pady=5)
+        ttk.Label(info_frame, text="Trạng thái:").grid(row=1, column=0, sticky=tk.W, pady=5)
         ttk.Label(info_frame, textvariable=self.status_value_var).grid(row=1, column=1, sticky=tk.W, pady=5)
 
-        ttk.Label(info_frame, text="Thanh toan:").grid(row=1, column=2, sticky=tk.W, padx=(15, 0))
+        ttk.Label(info_frame, text="Thanh toán:").grid(row=1, column=2, sticky=tk.W, padx=(15, 0))
         ttk.Label(info_frame, textvariable=self.payment_value_var).grid(row=1, column=3, sticky=tk.W)
 
-        ttk.Label(info_frame, text="Tong tien:").grid(row=2, column=0, sticky=tk.W)
+        ttk.Label(info_frame, text="Tổng tiền:").grid(row=2, column=0, sticky=tk.W)
         ttk.Label(info_frame, textvariable=self.total_value_var, font=("TkDefaultFont", 10, "bold")).grid(row=2, column=1, sticky=tk.W)
 
-        ttk.Checkbutton(info_frame, text="Can ho tro", variable=self.needs_assistance_var).grid(row=2, column=2, sticky=tk.W, padx=(15, 0))
+        ttk.Checkbutton(info_frame, text="Cần hỗ trợ", variable=self.needs_assistance_var).grid(row=2, column=2, sticky=tk.W, padx=(15, 0))
 
-        ttk.Label(info_frame, text="Ghi chu:").grid(row=3, column=0, sticky=tk.NW, pady=(8, 0))
+        ttk.Label(info_frame, text="Ghi chú:").grid(row=3, column=0, sticky=tk.NW, pady=(8, 0))
         self.note_text = tk.Text(info_frame, height=3, width=50)
         self.note_text.grid(row=3, column=1, columnspan=3, sticky=tk.W, pady=(8, 0))
 
         info_frame.columnconfigure(1, weight=1)
         info_frame.columnconfigure(3, weight=1)
 
-        items_frame = ttk.LabelFrame(right_frame, text="Danh sach mon", padding=10)
+        items_frame = ttk.LabelFrame(right_frame, text="Danh sách món", padding=10)
         items_frame.pack(fill=tk.BOTH, expand=True, pady=(10, 0))
 
         self.items_tree = ttk.Treeview(
@@ -168,11 +168,11 @@ class StaffApp(tk.Tk):
             selectmode="browse"
         )
         for col, label, width, anchor in (
-            ("product_id", "Ma SP", 70, tk.CENTER),
-            ("name", "Ten mon", 200, tk.W),
-            ("quantity", "So luong", 80, tk.CENTER),
-            ("price", "Don gia", 90, tk.E),
-            ("line_total", "Thanh tien", 110, tk.E),
+            ("product_id", "Mã SP", 70, tk.CENTER),
+            ("name", "Tên món", 200, tk.W),
+            ("quantity", "Số lượng", 80, tk.CENTER),
+            ("price", "Đơn giá", 90, tk.E),
+            ("line_total", "Thành tiền", 110, tk.E),
         ):
             self.items_tree.heading(col, text=label)
             self.items_tree.column(col, width=width, anchor=anchor)
@@ -181,42 +181,42 @@ class StaffApp(tk.Tk):
         item_buttons = ttk.Frame(items_frame)
         item_buttons.pack(fill=tk.X, pady=(8, 0))
 
-        self.add_item_btn = ttk.Button(item_buttons, text="Them mon", command=self.add_item)
+        self.add_item_btn = ttk.Button(item_buttons, text="Thêm món", command=self.add_item)
         self.add_item_btn.pack(side=tk.LEFT)
 
-        self.remove_item_btn = ttk.Button(item_buttons, text="Xoa mon", command=self.remove_item)
+        self.remove_item_btn = ttk.Button(item_buttons, text="Xóa món", command=self.remove_item)
         self.remove_item_btn.pack(side=tk.LEFT, padx=5)
 
-        self.change_qty_btn = ttk.Button(item_buttons, text="Doi so luong", command=self.change_quantity)
+        self.change_qty_btn = ttk.Button(item_buttons, text="Đổi số lượng", command=self.change_quantity)
         self.change_qty_btn.pack(side=tk.LEFT)
 
         action_frame = ttk.Frame(right_frame)
         action_frame.pack(fill=tk.X, pady=(12, 0))
 
-        self.save_details_btn = ttk.Button(action_frame, text="Luu thong tin", command=self.save_details)
+        self.save_details_btn = ttk.Button(action_frame, text="Lưu thông tin", command=self.save_details)
         self.save_details_btn.pack(side=tk.LEFT)
 
-        self.confirm_btn = ttk.Button(action_frame, text="Xac nhan don", command=self.confirm_order)
+        self.confirm_btn = ttk.Button(action_frame, text="Xác nhận đơn", command=self.confirm_order)
         self.confirm_btn.pack(side=tk.LEFT, padx=5)
 
-        self.send_kitchen_btn = ttk.Button(action_frame, text="Gui xuong bep", command=self.send_to_kitchen)
+        self.send_kitchen_btn = ttk.Button(action_frame, text="Gửi xuống bếp", command=self.send_to_kitchen)
         self.send_kitchen_btn.pack(side=tk.LEFT)
 
         self.mark_served_pay_now_btn = ttk.Button(
             action_frame,
-            text="Da phuc vu (Thanh toan ngay)",
+            text="Đã phục vụ (Thanh toán ngay)",
             command=self.mark_served_pay_now
         )
         self.mark_served_pay_now_btn.pack(side=tk.LEFT, padx=5)
 
         self.mark_served_pay_later_btn = ttk.Button(
             action_frame,
-            text="Da phuc vu (Thanh toan sau)",
+            text="Đã phục vụ (Thanh toán sau)",
             command=self.mark_served_pay_later
         )
         self.mark_served_pay_later_btn.pack(side=tk.LEFT, padx=5)
 
-        self.cancel_btn = ttk.Button(action_frame, text="Huy don", command=self.cancel_order)
+        self.cancel_btn = ttk.Button(action_frame, text="Hủy đơn", command=self.cancel_order)
         self.cancel_btn.pack(side=tk.LEFT)
 
         self._set_buttons_state("disabled")
@@ -249,8 +249,8 @@ class StaffApp(tk.Tk):
         try:
             all_orders = self.order_manager.get_all_orders()
         except Exception as exc:  # pylint: disable=broad-except
-            self.last_refresh_var.set(f"Loi cap nhat luc {refresh_stamp}")
-            messagebox.showerror("Loi", f"Khong the tai danh sach don hang:\n{exc}")
+            self.last_refresh_var.set(f"Lỗi cập nhật lúc {refresh_stamp}")
+            messagebox.showerror("Lỗi", f"Không thể tải danh sách đơn hàng:\n{exc}")
         else:
             current_ids = {order["id"] for order in all_orders}
             status_alerts = []
@@ -264,9 +264,9 @@ class StaffApp(tk.Tk):
                     if previous_status and current_status != previous_status:
                         table = order.get("table_number") or "-"
                         if current_status == "processing":
-                            status_alerts.append(f"Bep dang che bien don #{order_id} (Ban {table}).")
+                            status_alerts.append(f"Bếp đang chế biến đơn #{order_id} (Bàn {table}).")
                         elif current_status == "completed":
-                            status_alerts.append(f"Mon cho don #{order_id} (Ban {table}) da san sang. Moi den bep nhan.")
+                            status_alerts.append(f"Món cho đơn #{order_id} (Bàn {table}) đã sẵn sàng. Mời đến bếp nhận.")
             self._known_order_ids = current_ids
             self._initial_orders_loaded = True
             self._status_snapshot = {
@@ -290,7 +290,7 @@ class StaffApp(tk.Tk):
 
             for order in orders:
                 order_id = order["id"]
-                customer = order.get("customer_name") or "Khach le"
+                customer = order.get("customer_name") or "Khách lẻ"
                 status_code = order.get("status")
                 status_text = STATUS_DISPLAY.get(status_code, status_code)
                 total = as_float(order.get("total_price"))
@@ -316,21 +316,21 @@ class StaffApp(tk.Tk):
 
             if new_ids:
                 self.after(8000, lambda ids=list(new_ids): self._clear_new_order_tags(ids))
-            self.last_refresh_var.set(f"Cap nhat luc {refresh_stamp}")
+            self.last_refresh_var.set(f"Cập nhật lúc {refresh_stamp}")
 
             if new_orders:
                 count = len(new_orders)
                 if count == 1:
-                    messagebox.showinfo("Thong bao", f"Don hang moi #{new_orders[0]['id']} vua duoc tao.")
+                    messagebox.showinfo("Thông báo", f"Đơn hàng mới #{new_orders[0]['id']} vừa được tạo.")
                 else:
-                    messagebox.showinfo("Thong bao", f"Ban co {count} don hang moi.")
+                    messagebox.showinfo("Thông báo", f"Bạn có {count} đơn hàng mới.")
                 try:
                     self.bell()
                 except Exception:
                     pass
 
             for alert in status_alerts:
-                messagebox.showinfo("Thong bao", alert)
+                messagebox.showinfo("Thông báo", alert)
         finally:
             self._refresh_in_progress = False
             if hasattr(self, "refresh_button"):
@@ -351,7 +351,7 @@ class StaffApp(tk.Tk):
     def load_order_details(self, order_id, order_data=None):
         order = order_data or self.order_manager.get_order(order_id)
         if not order:
-            messagebox.showwarning("Thong bao", "Khong the tai chi tiet don hang.")
+            messagebox.showwarning("Thông báo", "Không thể tải chi tiết đơn hàng.")
             return
 
         self.selected_order_data = order

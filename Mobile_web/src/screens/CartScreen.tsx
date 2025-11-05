@@ -3,14 +3,17 @@ import { useNavigate } from 'react-router-dom';
 import { useCart } from '@mobile/context/CartContext';
 import { useAuth } from '@mobile/context/AuthContext';
 import { createOrder, CreateOrderPayload } from '@mobile/services/orderApi';
+import { addGuestOrder } from '@mobile/utils/guestOrders';
 
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value);
 
-type FeedbackState = {
-  type: 'success' | 'error';
-  message: string;
-} | null;
+type FeedbackState =
+  | {
+      type: 'success' | 'error';
+      message: string;
+    }
+  | null;
 
 const CartScreen = () => {
   const navigate = useNavigate();
@@ -40,7 +43,7 @@ const CartScreen = () => {
     setIsSubmitting(true);
     try {
       const payload: CreateOrderPayload = {
-        customer_name: customerName.trim() || 'Khách lẻ',
+        customer_name: customerName.trim() || 'Khach le',
         items: items.map(item => ({
           product_id: Number(item.id),
           quantity: item.quantity,
@@ -55,18 +58,25 @@ const CartScreen = () => {
       };
 
       const response = await createOrder(payload);
+      addGuestOrder({
+        id: response.order_id,
+        createdAt: new Date().toISOString(),
+        status: 'pending',
+        totalPrice,
+        customerName: customerName.trim() || 'Khach le'
+      });
       setFeedback({
         type: 'success',
-        message: `Đặt món thành công! Mã đơn #${response.order_id}${
-          response.table_number ? ` • Bàn ${response.table_number}` : ''
-        }`
+        message: `Dặt món thành công! Mã đơn #${response.order_id}${
+          response.table_number ? ` - Bàn ${response.table_number}` : ''
+        }. Tien do da duoc luu tai muc Don hang.`
       });
       clearCart();
     } catch (error) {
       setFeedback({
         type: 'error',
         message:
-          error instanceof Error ? error.message : 'Không thể gửi đơn hàng. Vui lòng thử lại sau.'
+          error instanceof Error ? error.message : 'Khong the gui don hang. Vui long thu lai sau.'
       });
     } finally {
       setIsSubmitting(false);
@@ -75,13 +85,23 @@ const CartScreen = () => {
 
   if (items.length === 0) {
     return (
-      <section className="page-section">
+      <section className="page-section" style={{ gap: 16 }}>
+        {feedback && (
+          <div className={feedback.type === 'success' ? 'success-banner' : 'error-banner'}>
+            {feedback.message}
+          </div>
+        )}
         <div className="empty-state">
-          Giỏ hàng của bạn đang trống. Khám phá món ngon tại trang chủ nhé!
+          Giỏ hàng hiện đang trống. Hãy quay lại trang chủ để chọn thêm món hoặc theo dõi đơn vừa tạo.
         </div>
-        <button className="primary-button" type="button" onClick={() => navigate('/')}>
-          Về trang chủ
-        </button>
+        <div style={{ display: 'flex', gap: 12 }}>
+          <button className="secondary-button" type="button" onClick={() => navigate('/orders')}>
+            Xem đơn hàng
+          </button>
+          <button className="primary-button" type="button" onClick={() => navigate('/')}>
+            Về trang chủ
+          </button>
+        </div>
       </section>
     );
   }
@@ -90,7 +110,9 @@ const CartScreen = () => {
     <section className="page-section" style={{ gap: 20 }}>
       <header>
         <h1 className="screen-heading">Giỏ hàng của bạn</h1>
-        <p className="muted-text">{totalItems} món • Tổng {formatCurrency(totalPrice)}</p>
+        <p className="muted-text">
+          {totalItems} món - Tổng {formatCurrency(totalPrice)}
+        </p>
       </header>
 
       {feedback && (
@@ -128,7 +150,7 @@ const CartScreen = () => {
               />
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 <strong>{item.name}</strong>
-                <span className="muted-text">{formatCurrency(unitPrice)} / món</span>
+                <span className="muted-text">{formatCurrency(unitPrice)} / mon</span>
                 {item.selectedOptions && (
                   <ul style={{ margin: 0, paddingLeft: 16, color: '#6b7280', fontSize: 12 }}>
                     {item.selectedOptions.map(option => (
@@ -155,7 +177,7 @@ const CartScreen = () => {
                     +
                   </button>
                   <button className="danger-button" type="button" onClick={() => removeItem(item.uniqueId)}>
-                    Xóa
+                    Xoa
                   </button>
                 </div>
               </div>
@@ -167,12 +189,12 @@ const CartScreen = () => {
       <form className="page-section" style={{ gap: 16 }} onSubmit={handleOrder}>
         <div className="form-group">
           <label className="form-label" htmlFor="customer-name">
-            Tên khách hàng
+            Ten khach hang
           </label>
           <input
             id="customer-name"
             className="text-field"
-            placeholder="Nhập tên của bạn"
+            placeholder="Nhap ten cua ban"
             value={customerName}
             onChange={event => setCustomerName(event.target.value)}
             required
@@ -189,28 +211,28 @@ const CartScreen = () => {
             value={paymentMethod}
             onChange={event => setPaymentMethod(event.target.value)}
           >
-            <option value="cash">Tiền mặt tại quầy</option>
+            <option value="cash">Thanh toán tiền mặt tại quầy</option>
             <option value="bank_transfer">Chuyển khoản</option>
-            <option value="ewallet">Ví điện tử</option>
+            <option value="ewallet">Ví diện tử</option>
           </select>
         </div>
 
         <div className="form-group">
           <label className="form-label" htmlFor="order-note">
-            Ghi chú (tuỳ chọn)
+            Ghi chú (tùy chọn)
           </label>
           <textarea
             id="order-note"
             className="text-area"
             rows={3}
-            placeholder="Ví dụ: Ít đá, thêm trân châu..."
+            placeholder="Vi du: it da, them tran chau..."
             value={note}
             onChange={event => setNote(event.target.value)}
           />
         </div>
 
         <button className="primary-button" type="submit" disabled={disabled}>
-          {isSubmitting ? 'Đang gửi đơn...' : `Đặt món ngay • ${formatCurrency(totalPrice)}`}
+          {isSubmitting ? 'Dang gui don...' : `Dat mon ngay - ${formatCurrency(totalPrice)}`}
         </button>
       </form>
     </section>

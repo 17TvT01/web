@@ -1,11 +1,22 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import type { SelectedOption } from '@shared/types';
+import type { ProductOption, SelectedOption } from '@shared/types';
+import defaultOptionsByCategory from '@shared/config/defaultProductOptions';
 import { useProducts } from '@mobile/context/ProductContext';
 import { useCart } from '@mobile/context/CartContext';
 
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value);
+
+const mergeOptions = (
+  defaults: ProductOption[] | undefined,
+  custom: ProductOption[] | undefined
+): ProductOption[] => {
+  const map = new Map<string, ProductOption>();
+  (defaults ?? []).forEach(option => map.set(option.name, option));
+  (custom ?? []).forEach(option => map.set(option.name, option));
+  return Array.from(map.values());
+};
 
 const ProductDetailScreen = () => {
   const { productId } = useParams();
@@ -23,14 +34,28 @@ const ProductDetailScreen = () => {
     }
   }, [loading, product]);
 
-  const handleQuantityChange = (nextQuantity: number) => {
-    if (nextQuantity < 1) {
+  useEffect(() => {
+    setSelectedOptions([]);
+    setQuantity(1);
+  }, [productId]);
+
+  const combinedOptions = useMemo<ProductOption[]>(() => {
+    if (!product) {
+      return [];
+    }
+    const defaults = defaultOptionsByCategory[product.category] ?? [];
+    const custom = Array.isArray(product.options) ? product.options : [];
+    return mergeOptions(defaults, custom);
+  }, [product]);
+
+  const handleQuantityChange = (next: number) => {
+    if (next < 1) {
       return;
     }
-    setQuantity(nextQuantity);
+    setQuantity(next);
   };
 
-  const handleAddOption = (name: string, value: string, type: 'radio' | 'checkbox') => {
+  const handleToggleOption = (name: string, value: string, type: 'radio' | 'checkbox') => {
     setSelectedOptions(prev => {
       if (type === 'radio') {
         const others = prev.filter(option => option.name !== name);
@@ -58,12 +83,12 @@ const ProductDetailScreen = () => {
 
   if (error || !product) {
     return (
-      <div className="page-section">
+      <section className="page-section">
         <div className="error-banner">{error ?? 'Không tìm thấy sản phẩm.'}</div>
         <button className="secondary-button" type="button" onClick={() => navigate('/')}>
           Quay lại trang chủ
         </button>
-      </div>
+      </section>
     );
   }
 
@@ -102,19 +127,19 @@ const ProductDetailScreen = () => {
       <div className="form-group">
         <span className="form-label">Số lượng</span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <button className="secondary-button" onClick={() => handleQuantityChange(quantity - 1)}>
+          <button className="secondary-button" type="button" onClick={() => handleQuantityChange(quantity - 1)}>
             -
           </button>
           <strong>{quantity}</strong>
-          <button className="secondary-button" onClick={() => handleQuantityChange(quantity + 1)}>
+          <button className="secondary-button" type="button" onClick={() => handleQuantityChange(quantity + 1)}>
             +
           </button>
         </div>
       </div>
 
-      {product.options && product.options.length > 0 && (
+      {combinedOptions.length > 0 && (
         <div className="page-section" style={{ gap: 12 }}>
-          {product.options.map(option => (
+          {combinedOptions.map(option => (
             <div key={option.name} className="form-group">
               <span className="form-label">{option.name}</span>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
@@ -126,14 +151,14 @@ const ProductDetailScreen = () => {
                     selected => selected.name === option.name && selected.value === value
                   );
                   const extraInfo = price ? ` (+${formatCurrency(price)})` : '';
-
                   const buttonClass = isSelected ? 'primary-button' : 'secondary-button';
+
                   return (
                     <button
                       key={value}
                       className={buttonClass}
                       type="button"
-                      onClick={() => handleAddOption(option.name, value, option.type)}
+                      onClick={() => handleToggleOption(option.name, value, option.type)}
                     >
                       {label}
                       {extraInfo}
@@ -147,7 +172,7 @@ const ProductDetailScreen = () => {
       )}
 
       <button className="primary-button" type="button" onClick={handleAddToCart} disabled={!product.inStock}>
-        Thêm vào giỏ • {formatCurrency(totalPrice)}
+        Thêm vào giỏ - {formatCurrency(totalPrice)}
       </button>
     </section>
   );

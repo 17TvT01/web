@@ -41,6 +41,11 @@ export const fetchOrders = async (status?: string) => {
   return handleResponse<unknown[]>(response);
 };
 
+export const getOrder = async (orderId: number) => {
+  const response = await fetch(`${API_BASE_URL}/orders/${orderId}`);
+  return handleResponse<Record<string, unknown>>(response);
+};
+
 export const createOrder = async (payload: CreateOrderPayload) => {
   const response = await fetch(`${API_BASE_URL}/orders`, {
     method: 'POST',

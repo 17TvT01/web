@@ -27,7 +27,6 @@ class Database:
                     last_error = e
                     self.conn = None
             if not self.conn:
-                # Re-raise the last error if connection failed for all attempts
                 raise last_error if last_error else Error("Unable to connect to MySQL with tried credentials")
             
             # Create cursor

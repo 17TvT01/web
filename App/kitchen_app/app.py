@@ -13,23 +13,23 @@ from order_manager import OrderManager, STATUS_TRANSITIONS
 
 
 STATUS_LABELS = {
-    "sent_to_kitchen": "Chua xu ly",
-    "processing": "Dang xu ly",
-    "completed": "Hoan thanh",
-    "cancelled": "Da huy",
-    "pending": "Cho nhan vien",
-    "confirmed": "Da xac nhan",
-    "served": "Da phuc vu"
+    "sent_to_kitchen": "Chưa xử lý",
+    "processing": "Đang xử lý",
+    "completed": "Hoàn thành",
+    "cancelled": "Dã hủy",
+    "pending": "Chờ nhân viên",
+    "confirmed":"Đã xác nhận",
+    "served": "Đã phục vụ"
 }
 
 KITCHEN_RELEVANT_STATUSES = ["sent_to_kitchen", "processing", "completed", "cancelled"]
 
 FILTER_OPTIONS = [
-    ("Tat ca", []),
-    ("Chua xu ly", ["sent_to_kitchen"]),
-    ("Dang xu ly", ["processing"]),
-    ("Hoan thanh", ["completed"]),
-    ("Da huy", ["cancelled"])
+    ("Tất cả", []),
+    ("Chưa xử lý", ["sent_to_kitchen"]),
+    ("Đang xử lý", ["processing"]),
+    ("Hoàn thành", ["completed"]),
+    ("Đã hủy", ["cancelled"])
 ]
 
 
@@ -44,7 +44,7 @@ def format_currency(value):
     try:
         return f"{float(value):,.2f} VND"
     except (TypeError, ValueError):
-        return "0.00 VND"
+        return "0 VND"
 
 
 def _flatten_option_entries(options):
@@ -127,8 +127,8 @@ def summarize_options(options):
 class KitchenApp(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("Quan ly bep - Trang thai don hang")
-        self.geometry("1000x600")
+        self.title("Quản lý bếp")
+        self.geometry("1400x700")
 
         self.order_manager = OrderManager()
         self.orders_data = {}
@@ -136,7 +136,7 @@ class KitchenApp(tk.Tk):
         self.selected_order = None
 
         self.filter_var = tk.StringVar(value=FILTER_OPTIONS[0][0])
-        self.order_title_var = tk.StringVar(value="Chua chon don hang")
+        self.order_title_var = tk.StringVar(value="Chưa chọn đơn hàng")
         self.customer_var = tk.StringVar(value="---")
         self.table_var = tk.StringVar(value="---")
         self.status_var = tk.StringVar(value="---")
@@ -147,7 +147,7 @@ class KitchenApp(tk.Tk):
         self._refresh_in_progress = False
         self._pending_refresh = False
         self._known_order_ids = set()
-        self.last_refresh_var = tk.StringVar(value="Chua cap nhat")
+        self.last_refresh_var = tk.StringVar(value="Chưa cập nhật")
 
         self._build_layout()
         self.refresh_orders()
@@ -186,10 +186,10 @@ class KitchenApp(tk.Tk):
             height=24,
             selectmode="browse"
         )
-        self.orders_tree.heading("id", text="Ma don")
-        self.orders_tree.heading("table", text="Ban")
-        self.orders_tree.heading("customer", text="Khach hang")
-        self.orders_tree.heading("status", text="Trang thai")
+        self.orders_tree.heading("id", text="Mã đơn")
+        self.orders_tree.heading("table", text="Bàn")
+        self.orders_tree.heading("customer", text="Khách hàng")
+        self.orders_tree.heading("status", text="Trạng thái")
 
         self.orders_tree.column("id", width=80, anchor=tk.CENTER)
         self.orders_tree.column("table", width=70, anchor=tk.CENTER)
@@ -204,21 +204,21 @@ class KitchenApp(tk.Tk):
         right_frame = ttk.Frame(main_frame)
         right_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(15, 0))
 
-        info_frame = ttk.LabelFrame(right_frame, text="Thong tin don", padding=10)
+        info_frame = ttk.LabelFrame(right_frame, text="Thông tin đơn", padding=10)
         info_frame.pack(fill=tk.X)
 
         ttk.Label(info_frame, textvariable=self.order_title_var, font=("TkDefaultFont", 11, "bold")).grid(row=0, column=0, columnspan=2, sticky=tk.W)
 
-        ttk.Label(info_frame, text="Khach hang:").grid(row=1, column=0, sticky=tk.W, pady=3)
+        ttk.Label(info_frame, text="Khách hàng:").grid(row=1, column=0, sticky=tk.W, pady=3)
         ttk.Label(info_frame, textvariable=self.customer_var).grid(row=1, column=1, sticky=tk.W, pady=3)
 
-        ttk.Label(info_frame, text="Ban so:").grid(row=2, column=0, sticky=tk.W, pady=3)
+        ttk.Label(info_frame, text="Bàn số:").grid(row=2, column=0, sticky=tk.W, pady=3)
         ttk.Label(info_frame, textvariable=self.table_var).grid(row=2, column=1, sticky=tk.W, pady=3)
 
-        ttk.Label(info_frame, text="Trang thai:").grid(row=3, column=0, sticky=tk.W, pady=3)
+        ttk.Label(info_frame, text="Trạng thái:").grid(row=3, column=0, sticky=tk.W, pady=3)
         ttk.Label(info_frame, textvariable=self.status_var).grid(row=3, column=1, sticky=tk.W, pady=3)
 
-        ttk.Label(info_frame, text="Can ho tro:").grid(row=4, column=0, sticky=tk.W, pady=3)
+        ttk.Label(info_frame, text="Cần hỗ trợ:").grid(row=4, column=0, sticky=tk.W, pady=3)
         ttk.Label(info_frame, textvariable=self.assistance_var).grid(row=4, column=1, sticky=tk.W, pady=3)
 
         info_frame.columnconfigure(1, weight=1)
@@ -226,19 +226,19 @@ class KitchenApp(tk.Tk):
         button_frame = ttk.Frame(right_frame)
         button_frame.pack(fill=tk.X, pady=(8, 10))
 
-        self.btn_pending = ttk.Button(button_frame, text="Tra ve cho bep", command=lambda: self.set_status("sent_to_kitchen"))
+        self.btn_pending = ttk.Button(button_frame, text="Trả về cho bếp", command=lambda: self.set_status("sent_to_kitchen"))
         self.btn_pending.pack(side=tk.LEFT)
 
-        self.btn_processing = ttk.Button(button_frame, text="Bat dau che bien", command=lambda: self.set_status("processing"))
+        self.btn_processing = ttk.Button(button_frame, text="Bắt đầu chế biến", command=lambda: self.set_status("processing"))
         self.btn_processing.pack(side=tk.LEFT, padx=5)
 
-        self.btn_completed = ttk.Button(button_frame, text="Mon da san sang", command=lambda: self.set_status("completed"))
+        self.btn_completed = ttk.Button(button_frame, text="Món đã sẵn sàng", command=lambda: self.set_status("completed"))
         self.btn_completed.pack(side=tk.LEFT, padx=5)
 
-        self.btn_cancelled = ttk.Button(button_frame, text="Huy don", command=lambda: self.set_status("cancelled"))
+        self.btn_cancelled = ttk.Button(button_frame, text="Hủy đơn", command=lambda: self.set_status("cancelled"))
         self.btn_cancelled.pack(side=tk.LEFT, padx=5)
 
-        items_frame = ttk.LabelFrame(right_frame, text="Mon trong don", padding=10)
+        items_frame = ttk.LabelFrame(right_frame, text="Món trong đơn", padding=10)
         items_frame.pack(fill=tk.BOTH, expand=True, pady=(10, 0))
 
         self.items_tree = ttk.Treeview(
@@ -249,11 +249,11 @@ class KitchenApp(tk.Tk):
             selectmode="browse"
         )
         for col, label, width, anchor in (
-            ("product_id", "Ma SP", 70, tk.CENTER),
-            ("name", "Ten mon", 200, tk.W),
-            ("options", "Tuy chon", 200, tk.W),
-            ("quantity", "So luong", 80, tk.CENTER),
-            ("price", "Thanh tien", 110, tk.E),
+            ("product_id", "Mã SP", 70, tk.CENTER),
+            ("name", "Tên món", 200, tk.W),
+            ("options", "Tùy chọn", 200, tk.W),
+            ("quantity", "Số lượng", 80, tk.CENTER),
+            ("price", "Thành tiền", 110, tk.E),
         ):
             self.items_tree.heading(col, text=label)
             self.items_tree.column(col, width=width, anchor=anchor)
@@ -261,14 +261,14 @@ class KitchenApp(tk.Tk):
         self.items_tree.bind("<Double-1>", self.on_item_double_click)
         self.items_tree.bind("<<TreeviewSelect>>", self.on_item_select)
 
-        options_frame = ttk.LabelFrame(right_frame, text="Tuy chon mon", padding=10)
+        options_frame = ttk.LabelFrame(right_frame, text="Tùy chọn món", padding=10)
         options_frame.pack(fill=tk.BOTH, expand=True, pady=(10, 0))
 
         self.options_text = tk.Text(options_frame, height=4, wrap=tk.WORD)
         self.options_text.pack(fill=tk.BOTH, expand=True)
         self.options_text.configure(state="disabled")
 
-        note_frame = ttk.LabelFrame(right_frame, text="Ghi chu tu khach", padding=10)
+        note_frame = ttk.LabelFrame(right_frame, text="Ghi chú từ khách hàng", padding=10)
         note_frame.pack(fill=tk.BOTH, expand=True, pady=(10, 0))
 
         self.note_text = tk.Text(note_frame, height=5, wrap=tk.WORD)
@@ -300,8 +300,8 @@ class KitchenApp(tk.Tk):
             else:
                 orders = self.order_manager.get_all_orders(KITCHEN_RELEVANT_STATUSES)
         except Exception as exc:  # pylint: disable=broad-except
-            self.last_refresh_var.set(f"Loi cap nhat luc {refresh_stamp}")
-            messagebox.showerror("Loi", f"Khong the tai danh sach don hang:\n{exc}")
+            self.last_refresh_var.set(f"Lỗi cập nhật lúc {refresh_stamp}")
+            messagebox.showerror("Loi", f"Không thể tải danh sách đơn hàng:\n{exc}")
         else:
             previous_ids = set(self._known_order_ids)
             current_ids = {order["id"] for order in orders}
@@ -371,11 +371,11 @@ class KitchenApp(tk.Tk):
             return
 
         self.selected_order = order
-        self.order_title_var.set(f"Don hang #{order_id}")
-        self.customer_var.set(order.get("customer_name") or "Khach le")
+        self.order_title_var.set(f"Đơn hàng #{order_id}")
+        self.customer_var.set(order.get("customer_name") or "Khách")
         self.table_var.set(order.get("table_number") or "-")
         self.status_var.set(STATUS_LABELS.get(order.get("status"), order.get("status")))
-        self.assistance_var.set("Co" if order.get("needs_assistance") else "Khong")
+        self.assistance_var.set("Co" if order.get("needs_assistance") else "Không")
 
         self.note_text.configure(state="normal")
         self.note_text.delete("1.0", tk.END)
@@ -395,7 +395,7 @@ class KitchenApp(tk.Tk):
             options_summary = summarize_options(options_payload)
             entry = {
                 "product_id": item.get("product_id"),
-                "name": item.get("name") or f"San pham {item.get('product_id')}",
+                "name": item.get("name") or f"Sản phẩm {item.get('product_id')}",
                 "quantity": quantity,
                 "unit_price": unit_price,
                 "selected_options": options_payload,
@@ -426,7 +426,7 @@ class KitchenApp(tk.Tk):
 
     def clear_details(self):
         self.selected_order = None
-        self.order_title_var.set("Chua chon don hang")
+        self.order_title_var.set("Chưa chọn đơn hàng")
         self.customer_var.set("---")
         self.table_var.set("---")
         self.status_var.set("---")
@@ -438,14 +438,14 @@ class KitchenApp(tk.Tk):
         self.current_items = []
         self.options_text.configure(state="normal")
         self.options_text.delete("1.0", tk.END)
-        self.options_text.insert(tk.END, "Khong co tuy chon dac biet.")
+        self.options_text.insert(tk.END, "Không có tùy chọn đặc biệt.")
         self.options_text.configure(state="disabled")
         self._update_action_buttons()
 
     # --- Actions --------------------------------------------------------
     def set_status(self, target_status):
         if not self.selected_order:
-            messagebox.showinfo("Thong bao", "Hay chon mot don hang truoc.")
+            messagebox.showinfo("Thông báo", "Hãy chọn một đơn hàng.")
             return
 
         order_id = self.selected_order["id"]
@@ -464,11 +464,11 @@ class KitchenApp(tk.Tk):
             return
 
         if target_status == "completed":
-            messagebox.showinfo("Thong bao", "Don hang da hoan thanh. Da gui thong bao toi nhan vien phuc vu.")
+            messagebox.showinfo("Thông báo", "Đơn hàng đã hoàn thành và gửi thông báo đến nhân viên phục vụ.")
         elif target_status == "processing":
-            messagebox.showinfo("Thong bao", "Da danh dau bat dau che bien don hang.")
+            messagebox.showinfo("Thông báo", "Đã bắt đầu chế biến đơn hàng.")
         elif target_status == "cancelled":
-            messagebox.showinfo("Thong bao", "Don hang da huy.")
+            messagebox.showinfo("Thông báo", "Đơn hàng đã hủy.")
 
         self.refresh_orders(keep_selection=order_id)
 
@@ -496,26 +496,26 @@ class KitchenApp(tk.Tk):
 
         total_price = item["unit_price"] * item["quantity"]
         info_lines = [
-            f"Ten mon: {item['name']}",
-            f"So luong: {item['quantity']}",
-            f"Don gia: {item['unit_price']:,.2f} VND",
-            f"Thanh tien: {total_price:,.2f} VND"
+            f"Tên món: {item['name']}",
+            f"Số lượng: {item['quantity']}",
+            f"Đơn giá: {item['unit_price']:,.2f} VND",
+            f"Thành tiền: {total_price:,.2f} VND"
         ]
         ttk.Label(frame, text="\n".join(info_lines), justify=tk.LEFT).pack(anchor=tk.W)
 
         options = item.get("selected_options")
         if options:
-            ttk.Label(frame, text="Tuy chon:").pack(anchor=tk.W, pady=(10, 0))
+            ttk.Label(frame, text="Tùy chọn:").pack(anchor=tk.W, pady=(10, 0))
             text = tk.Text(frame, height=8, wrap=tk.WORD)
             text.pack(fill=tk.BOTH, expand=True)
             detail_text = item.get("options_detail") or format_option_detail(options)
-            text.insert(tk.END, detail_text if detail_text else "Khong co tuy chon dac biet.")
+            text.insert(tk.END, detail_text if detail_text else "Không có tùy chọn đặc biệt.")
             text.configure(state="disabled")
         ttk.Button(frame, text="Dong", command=window.destroy).pack(pady=(10, 0))
 
     # --- Helpers --------------------------------------------------------
     def _update_options_display(self, item=None):
-        message = "Khong co tuy chon dac biet."
+        message = "Không có tùy chọn đặc biệt."
         target = item
         if target is None:
             selection = self.items_tree.selection()
